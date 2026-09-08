@@ -51,6 +51,69 @@ final class AtlasGeometryTests: XCTestCase {
     }
 }
 
+final class PhrasebookTests: XCTestCase {
+    /// The whole point: a tool name must never reach the bubble.
+    func testNoToolNameEverLeaks() {
+        let tools = ["Bash", "Read", "Edit", "Write", "Grep", "Glob",
+                     "WebFetch", "WebSearch", "Agent", "Task", "TodoWrite",
+                     "mcp__something__weird", "NotebookEdit"]
+        for tool in tools {
+            for detail in [Phrasebook.Detail.description, .command, .file, .pattern, .none] {
+                let line = Phrasebook.working(tool: tool, detail: detail, value: "thing.swift")
+                XCTAssertFalse(line.contains(tool), "\(tool) leaked into: \(line)")
+                XCTAssertFalse(line.isEmpty)
+            }
+        }
+    }
+
+    func testAMissingSubjectStillReadsAsASentence() {
+        for tool in ["Bash", "Read", "Grep", "Edit", "Unknown"] {
+            let line = Phrasebook.working(tool: tool, detail: .none, value: nil)
+            XCTAssertFalse(line.isEmpty)
+            XCTAssertFalse(line.hasSuffix(" "), "dangling subject in: \(line)")
+        }
+    }
+
+    /// A Bash description is written in the imperative for Claude, so it has to
+    /// be folded into Mikkel's own sentence rather than shown raw.
+    func testBashDescriptionBecomesFirstPerson() {
+        let line = Phrasebook.working(tool: "Bash", detail: .description,
+                                      value: "Stack the two bubble captures")
+        XCTAssertEqual(line, "Let me stack the two bubble captures")
+    }
+
+    func testAcronymsAndProperNounsKeepTheirCapital() {
+        XCTAssertEqual(Phrasebook.uncapitalised("GitHub the thing"), "GitHub the thing")
+        XCTAssertEqual(Phrasebook.uncapitalised("API check"), "API check")
+        XCTAssertEqual(Phrasebook.uncapitalised("Check the thing"), "check the thing")
+    }
+
+    /// Phrasing must not reword itself while one tool call is still running.
+    func testPhrasingIsStableForTheSameSubject() {
+        let first = Phrasebook.working(tool: "Read", detail: .file, value: "Atlas.swift")
+        for _ in 0..<20 {
+            XCTAssertEqual(Phrasebook.working(tool: "Read", detail: .file, value: "Atlas.swift"), first)
+        }
+    }
+
+    func testDifferentSubjectsCanGetDifferentPhrasings() {
+        let subjects = ["Atlas.swift", "PetView.swift", "main.swift", "README.md",
+                        "EventServer.swift", "Package.swift", "bundle.sh"]
+        let lines = Set(subjects.map {
+            Phrasebook.working(tool: "Read", detail: .file, value: $0)
+                .replacingOccurrences(of: $0, with: "X")
+        })
+        XCTAssertGreaterThan(lines.count, 1, "every subject got identical phrasing")
+    }
+
+    func testClaudesOwnWordingWinsForApprovals() {
+        XCTAssertEqual(Phrasebook.needsYou("Claude needs your permission to use Bash"),
+                       "Claude needs your permission to use Bash")
+        XCTAssertEqual(Phrasebook.needsYou(nil), "I need you for this one")
+        XCTAssertEqual(Phrasebook.needsYou(""), "I need you for this one")
+    }
+}
+
 final class SessionTrackerTests: XCTestCase {
     private func event(_ name: String, session: String = "s", tool: String? = nil,
                        id: String? = nil, error: Bool = false,
@@ -184,7 +247,7 @@ final class SessionTrackerTests: XCTestCase {
         json["summary"] = "fix the flaky test"
         tracker.handle(PetEvent(json: json)!)
 
-        XCTAssertEqual(latest().2, "fix the flaky test")
+        XCTAssertEqual(latest().2, "On it: fix the flaky test")
         XCTAssertEqual(latest().0, .running)
     }
 

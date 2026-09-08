@@ -17,21 +17,28 @@ func socketPath() -> String {
 
 /// Shortens a value for the speech bubble. Never carries file contents or
 /// command output, only the small identifying strings from `tool_input`.
-func summary(event: String, payload: [String: Any]) -> String? {
+///
+/// The kind travels with the value, because the pet phrases a file name quite
+/// differently from a search pattern and cannot tell them apart afterwards.
+func summary(event: String, payload: [String: Any]) -> (text: String, kind: String)? {
     func clip(_ s: String, _ n: Int = 90) -> String {
         let flat = s.split(whereSeparator: \.isNewline).joined(separator: " ")
         return flat.count <= n ? flat : String(flat.prefix(n - 1)) + "\u{2026}"
     }
     if event == "UserPromptSubmit" {
-        return (payload["prompt"] as? String).map { clip($0) }
+        return (payload["prompt"] as? String).map { (clip($0), "description") }
     }
     guard let input = payload["tool_input"] as? [String: Any] else { return nil }
-    for key in ["description", "command", "file_path", "pattern", "path", "url", "query"] {
+    let fields = [
+        ("description", "description"), ("command", "command"),
+        ("file_path", "file"), ("notebook_path", "file"), ("path", "file"),
+        ("pattern", "pattern"), ("url", "url"), ("query", "query"),
+    ]
+    for (key, kind) in fields {
         if let value = input[key] as? String, !value.isEmpty {
-            if key == "file_path" || key == "path" {
-                return clip((value as NSString).lastPathComponent)
-            }
-            return clip(value)
+            // A full path is noise in a bubble; the file name is the useful part.
+            let shown = kind == "file" ? (value as NSString).lastPathComponent : value
+            return (clip(shown), kind)
         }
     }
     return nil
@@ -54,7 +61,10 @@ if let entrypoint = ProcessInfo.processInfo.environment["CLAUDE_CODE_ENTRYPOINT"
 for key in ["session_id", "cwd", "tool_name", "tool_use_id", "permission_mode", "source", "reason", "message"] {
     if let value = payload[key] as? String { message[key] = value }
 }
-if let text = summary(event: event, payload: payload) { message["summary"] = text }
+if let (text, kind) = summary(event: event, payload: payload) {
+    message["summary"] = text
+    message["summary_kind"] = kind
+}
 
 // Some tools report a failure inside `tool_response` instead of throwing, so
 // the pet gets an immediate signal in addition to the unmatched-id rule.

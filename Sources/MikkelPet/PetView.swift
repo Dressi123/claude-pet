@@ -20,7 +20,20 @@ final class PetView: NSView {
     private let atlas: Atlas
     private let spriteLayer = CALayer()
     private let bubbleLayer = CATextLayer()
-    private let bubbleBackground = CALayer()
+    private let timerLayer = CATextLayer()
+    private let bubbleBackground = CAShapeLayer()
+
+    /// Text without the trailing dots, so the dots can animate on their own.
+    private var bubbleText = ""
+    /// When the current line started, for the elapsed timer.
+    private var lineStartedAt = CACurrentMediaTime()
+    /// Whether this line is something in progress rather than a finished state.
+    private var lineIsBusy = false
+    private var dotPhase = 0
+    private var lastBubbleTick: CFTimeInterval = 0
+
+    /// A quick job needs no clock; the timer is for the ones that drag.
+    private static let timerAppearsAfter: CFTimeInterval = 4
 
     /// The looping state the pet returns to.
     private var restingState: PetState = .idle
@@ -67,8 +80,12 @@ final class PetView: NSView {
                height: CGFloat(AtlasGeometry.cellHeight) * scale)
     }
 
-    static let bubbleHeight: CGFloat = 30
-    static let bubbleWidth: CGFloat = 260
+    static let bubbleBoxHeight: CGFloat = 29
+    static let tailHeight: CGFloat = 7
+    static let tailWidth: CGFloat = 14
+    /// Vertical room the window must leave above the pet.
+    static let bubbleHeight: CGFloat = bubbleBoxHeight + tailHeight + 2
+    static let bubbleWidth: CGFloat = 280
 
     init(atlas: Atlas) {
         self.atlas = atlas
@@ -84,11 +101,13 @@ final class PetView: NSView {
         spriteLayer.actions = ["contents": NSNull()]
         layer?.addSublayer(spriteLayer)
 
-        bubbleBackground.backgroundColor = NSColor(calibratedRed: 0.06, green: 0.09, blue: 0.18, alpha: 0.88).cgColor
-        bubbleBackground.cornerRadius = 9
-        bubbleBackground.borderWidth = 1
-        bubbleBackground.borderColor = NSColor(calibratedRed: 0.95, green: 0.70, blue: 0.25, alpha: 0.55).cgColor
+        bubbleBackground.fillColor = NSColor(calibratedRed: 0.06, green: 0.09, blue: 0.18, alpha: 0.92).cgColor
+        bubbleBackground.strokeColor = Self.accent(for: .idle).cgColor
+        bubbleBackground.lineWidth = 1
         bubbleBackground.opacity = 0
+        // The bubble grows and shrinks with the text, so let those changes ease
+        // rather than snap between widths.
+        bubbleBackground.actions = ["path": CABasicAnimation(keyPath: "path")]
         layer?.addSublayer(bubbleBackground)
 
         bubbleLayer.font = NSFont.systemFont(ofSize: 11, weight: .medium)
@@ -99,6 +118,13 @@ final class PetView: NSView {
         bubbleLayer.isWrapped = false
         bubbleLayer.opacity = 0
         layer?.addSublayer(bubbleLayer)
+
+        timerLayer.font = NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .regular)
+        timerLayer.fontSize = 10
+        timerLayer.foregroundColor = NSColor(calibratedRed: 0.95, green: 0.70, blue: 0.25, alpha: 0.85).cgColor
+        timerLayer.alignmentMode = .right
+        timerLayer.opacity = 0
+        layer?.addSublayer(timerLayer)
 
         startClock()
     }
@@ -144,13 +170,119 @@ final class PetView: NSView {
     }
 
     private func setBubble(_ text: String) {
+        guard text != bubbleText else { return }
+        bubbleText = text
+        lineStartedAt = CACurrentMediaTime()
+        dotPhase = 0
         let visible = !text.isEmpty
-        bubbleLayer.string = text
         CATransaction.begin()
         CATransaction.setAnimationDuration(0.18)
         bubbleLayer.opacity = visible ? 1 : 0
         bubbleBackground.opacity = visible ? 1 : 0
+        timerLayer.opacity = 0
         CATransaction.commit()
+        layoutBubble()
+    }
+
+    /// The accent ties the bubble to what he is doing: gold when he needs you,
+    /// warm red when something broke, quiet blue the rest of the time.
+    private static func accent(for state: PetState) -> NSColor {
+        switch state {
+        case .waiting:
+            return NSColor(calibratedRed: 0.98, green: 0.72, blue: 0.20, alpha: 0.95)
+        case .failed:
+            return NSColor(calibratedRed: 0.90, green: 0.42, blue: 0.36, alpha: 0.90)
+        default:
+            return NSColor(calibratedRed: 0.55, green: 0.68, blue: 0.92, alpha: 0.45)
+        }
+    }
+
+    /// Busy lines get animated dots and, once they drag on, a clock.
+    private var isBusyLine: Bool {
+        guard oneShotState == nil else { return false }
+        switch restingState {
+        case .running, .review, .runningRight, .runningLeft: return true
+        default: return false
+        }
+    }
+
+    private func elapsedText() -> String? {
+        let elapsed = CACurrentMediaTime() - lineStartedAt
+        guard isBusyLine, elapsed >= Self.timerAppearsAfter else { return nil }
+        let seconds = Int(elapsed)
+        return String(format: "%d:%02d", seconds / 60, seconds % 60)
+    }
+
+    /// Rebuilds the bubble each frame: dots cycle, the clock ticks, and the
+    /// shape follows the text width so short lines get a small bubble.
+    private func updateBubble() {
+        guard !bubbleText.isEmpty else { return }
+        let now = CACurrentMediaTime()
+        guard now - lastBubbleTick >= 0.4 else { return }
+        lastBubbleTick = now
+        if isBusyLine { dotPhase = (dotPhase + 1) % 4 }
+        layoutBubble()
+    }
+
+    private func layoutBubble() {
+        guard !bubbleText.isEmpty else { return }
+        let dots = isBusyLine ? String(repeating: "\u{00B7}", count: dotPhase) : ""
+        let line = dots.isEmpty ? bubbleText : "\(bubbleText) \(dots)"
+        bubbleLayer.string = line
+
+        let font = NSFont.systemFont(ofSize: 11, weight: .medium)
+        // Measure the widest form so cycling dots never resize the bubble.
+        let widest = isBusyLine ? "\(bubbleText) \u{00B7}\u{00B7}\u{00B7}" : bubbleText
+        var textWidth = (widest as NSString)
+            .size(withAttributes: [.font: font]).width.rounded(.up)
+
+        let elapsed = elapsedText()
+        // Room for "10:05" plus the gap that separates it from the text.
+        let timerWidth: CGFloat = elapsed == nil ? 0 : 42
+        let sidePadding: CGFloat = 12
+        let maxWidth = bounds.width - 8
+        textWidth = min(textWidth, maxWidth - sidePadding * 2 - timerWidth)
+
+        let bubbleWidth = min(maxWidth, textWidth + sidePadding * 2 + timerWidth)
+        let x = ((bounds.width - bubbleWidth) / 2).rounded()
+        let y = petSize.height + Self.tailHeight + 2
+        let box = CGRect(x: x, y: y, width: bubbleWidth, height: Self.bubbleBoxHeight)
+
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        bubbleBackground.frame = bounds
+        bubbleBackground.path = Self.bubblePath(box: box, pointingAtX: bounds.width / 2)
+        bubbleBackground.strokeColor = Self.accent(for: oneShotState ?? restingState).cgColor
+        bubbleLayer.frame = CGRect(x: box.minX + sidePadding, y: box.minY + 7,
+                                   width: textWidth, height: 15)
+        bubbleLayer.alignmentMode = .left
+        bubbleLayer.contentsScale = window?.backingScaleFactor ?? 2
+        if let elapsed {
+            timerLayer.string = elapsed
+            timerLayer.frame = CGRect(x: box.maxX - sidePadding - timerWidth,
+                                      y: box.minY + 7, width: timerWidth, height: 15)
+            timerLayer.contentsScale = window?.backingScaleFactor ?? 2
+            timerLayer.opacity = 1
+        } else {
+            timerLayer.opacity = 0
+        }
+        CATransaction.commit()
+    }
+
+    /// A rounded rectangle with a small tail underneath, so the bubble reads as
+    /// Mikkel speaking rather than a label floating above him.
+    private static func bubblePath(box: CGRect, pointingAtX tipX: CGFloat) -> CGPath {
+        let radius: CGFloat = 10
+        let path = CGMutablePath()
+        path.addRoundedRect(in: box, cornerWidth: radius, cornerHeight: radius)
+        // Keep the tail within the straight part of the bottom edge.
+        let half = tailWidth / 2
+        let centre = min(max(tipX, box.minX + radius + half), box.maxX - radius - half)
+        path.move(to: CGPoint(x: centre - half, y: box.minY + 1))
+        path.addLine(to: CGPoint(x: centre, y: box.minY - tailHeight))
+        path.addLine(to: CGPoint(x: centre + half, y: box.minY + 1))
+        path.closeSubpath()
+        return path
     }
 
     // MARK: - Animation clock
@@ -173,6 +305,7 @@ final class PetView: NSView {
     }
 
     private func tick() {
+        updateBubble()
         if !isDragging, let pending = pendingResting,
            CACurrentMediaTime() - restingStartedAt >= Self.minimumDwell {
             pendingResting = nil
@@ -280,11 +413,8 @@ final class PetView: NSView {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         spriteLayer.frame = petFrame
-        let bubbleY = petSize.height + 4
-        bubbleBackground.frame = CGRect(x: 0, y: bubbleY, width: bounds.width, height: Self.bubbleHeight)
-        bubbleLayer.frame = CGRect(x: 10, y: bubbleY + 8, width: bounds.width - 20, height: 16)
-        bubbleLayer.contentsScale = window?.backingScaleFactor ?? 2
         CATransaction.commit()
+        layoutBubble()
     }
 
     // MARK: - Mouse

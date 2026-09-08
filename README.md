@@ -19,6 +19,36 @@ works:
 | a subagent finished             | jumps         |
 | nothing                         | idles         |
 
+## What he says
+
+The bubble never shows a tool name. "Bash: Stack the two bubble captures" is a
+log line, not a pet: `Bash` is machinery, and the text after it is the private
+description Claude writes for itself in the imperative. Mikkel speaks in the
+first person instead, so that becomes "Let me stack the two bubble captures".
+
+Each tool gets its own phrasing, drawn from a small set of variants chosen by a
+stable hash of the subject. Stable matters: the wording must not change while
+one tool call is still running, and Swift's own hashing is seeded per process,
+so `Phrasebook` carries its own.
+
+| Claude is doing        | Mikkel says                     |
+| ---------------------- | ------------------------------- |
+| reading a file         | Let me look at Atlas.swift      |
+| searching              | Hunting for socketPath          |
+| editing                | Tidying up PetView.swift        |
+| running a command      | Let me run the test suite       |
+| asking permission      | Claude's own wording, verbatim  |
+| a tool failed          | That didn't go through          |
+
+An approval prompt keeps Claude's own message, because it says what is actually
+being asked better than anything of ours would.
+
+The bubble sizes itself to the text and has a tail pointing at him, so "All
+done" gets a small bubble rather than the same slab as a full sentence. Dots
+cycle while he is busy, and a clock fades in once a job passes four seconds, so
+a slow build is visibly slow. The border picks up the state: gold when he needs
+you, warm red when something broke, quiet blue otherwise.
+
 ## Two playback modes
 
 The states he sits in while Claude works, idle, working, inspecting and asking,

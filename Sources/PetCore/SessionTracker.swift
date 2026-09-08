@@ -15,6 +15,8 @@ public struct PetEvent {
     public let summary: String?
     public let reason: String?
     public let entrypoint: String?
+    /// Which `tool_input` field `summary` came from, so it can be phrased.
+    public let summaryKind: Phrasebook.Detail
     /// Notification payloads carry their text here rather than in `tool_input`.
     public let message: String?
 
@@ -33,6 +35,8 @@ public struct PetEvent {
         summary = json["summary"] as? String
         reason = json["reason"] as? String
         entrypoint = json["entrypoint"] as? String
+        summaryKind = (json["summary_kind"] as? String)
+            .flatMap(Phrasebook.Detail.init(rawValue:)) ?? .none
         message = json["message"] as? String
     }
 }
@@ -100,18 +104,19 @@ public final class SessionTracker {
         case "SessionStart":
             snapshot.state = .idle
             snapshot.oneShot = .waving
-            snapshot.label = "Hello"
+            snapshot.label = Phrasebook.greeting()
             outstandingTools[id] = []
 
         case "UserPromptSubmit":
             settleUnfinishedTools(sessionID: id, into: &snapshot)
             snapshot.state = .running
-            snapshot.label = event.summary ?? "Thinking"
+            snapshot.label = Phrasebook.prompt(event.summary)
 
         case "PreToolUse":
-            let tool = event.toolName ?? "Tool"
+            let tool = event.toolName ?? ""
             snapshot.state = Self.state(forTool: tool)
-            snapshot.label = event.summary.map { "\(tool): \($0)" } ?? tool
+            snapshot.label = Phrasebook.working(
+                tool: tool, detail: event.summaryKind, value: event.summary)
             if let toolID = event.toolUseID {
                 outstandingTools[id, default: []].insert(toolID)
             }
@@ -122,7 +127,7 @@ public final class SessionTracker {
             }
             if event.toolError {
                 snapshot.oneShot = .failed
-                snapshot.label = "\(event.toolName ?? "That") went wrong"
+                snapshot.label = Phrasebook.toolFailed()
             }
             // The pose set by PreToolUse stands until the next tool or the end
             // of the turn. Claude is still busy either way, and flipping back
@@ -130,16 +135,16 @@ public final class SessionTracker {
 
         case "Notification":
             snapshot.state = .waiting
-            snapshot.label = event.message ?? event.summary ?? "Needs you"
+            snapshot.label = Phrasebook.needsYou(event.message ?? event.summary)
 
         case "SubagentStop":
             snapshot.oneShot = .jumping
-            snapshot.label = "Subagent done"
+            snapshot.label = Phrasebook.subagentDone()
 
         case "Stop":
             settleUnfinishedTools(sessionID: id, into: &snapshot)
             snapshot.state = .idle
-            if snapshot.oneShot == nil { snapshot.label = "Done" }
+            if snapshot.oneShot == nil { snapshot.label = Phrasebook.finished() }
 
         case "SessionEnd":
             sessions.removeValue(forKey: id)
@@ -166,7 +171,7 @@ public final class SessionTracker {
         guard let outstanding = outstandingTools[sessionID], !outstanding.isEmpty else { return }
         outstandingTools[sessionID] = []
         snapshot.oneShot = .failed
-        snapshot.label = outstanding.count == 1 ? "A tool failed" : "\(outstanding.count) tools failed"
+        snapshot.label = Phrasebook.toolsFailed(count: outstanding.count)
     }
 
     /// A session that has gone quiet for this long stops competing on state.
