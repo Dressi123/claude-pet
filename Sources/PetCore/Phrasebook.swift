@@ -87,6 +87,17 @@ public enum Phrasebook {
         return "On it: \(text)"
     }
 
+    /// Claude Code sends a notification both when it needs a decision and when
+    /// it has simply finished and is waiting. Only the first deserves the
+    /// asking pose; the second is the end of the turn, and showing "needs you"
+    /// there is just wrong.
+    public static func isIdlePrompt(_ message: String?) -> Bool {
+        guard let message = message?.lowercased() else { return false }
+        return message.contains("waiting for your input")
+            || message.contains("is idle")
+            || message.contains("waiting for input")
+    }
+
     public static func needsYou(_ message: String?) -> String {
         // Claude's own wording says what it needs, which beats anything of ours.
         guard let message, !message.isEmpty else { return "I need you for this one" }

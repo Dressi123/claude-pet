@@ -106,6 +106,15 @@ final class PhrasebookTests: XCTestCase {
         XCTAssertGreaterThan(lines.count, 1, "every subject got identical phrasing")
     }
 
+    /// Claude Code notifies both when it needs a decision and when it has
+    /// simply finished. Only the first is a request.
+    func testAnIdleNoticeIsNotTreatedAsARequest() {
+        XCTAssertTrue(Phrasebook.isIdlePrompt("Claude is waiting for your input"))
+        XCTAssertTrue(Phrasebook.isIdlePrompt("Claude is idle"))
+        XCTAssertFalse(Phrasebook.isIdlePrompt("Claude needs your permission to use Bash"))
+        XCTAssertFalse(Phrasebook.isIdlePrompt(nil))
+    }
+
     func testClaudesOwnWordingWinsForApprovals() {
         XCTAssertEqual(Phrasebook.needsYou("Claude needs your permission to use Bash"),
                        "Claude needs your permission to use Bash")
@@ -437,6 +446,33 @@ final class SessionTrackerTests: XCTestCase {
         tracker.pinnedSessionID = nil
 
         XCTAssertEqual(latest().0, .waiting)
+    }
+
+    /// The reported bug: finishing a task left him asking for input, because
+    /// the "waiting for your input" notice took the asking pose.
+    func testFinishingDoesNotLeaveHimAsking() {
+        let tracker = SessionTracker()
+        let latest = capture(tracker)
+
+        tracker.handle(event("PreToolUse", tool: "Bash", id: "a", entrypoint: "cli"))
+        tracker.handle(event("PostToolUse", tool: "Bash", id: "a", entrypoint: "cli"))
+        tracker.handle(event("Stop", entrypoint: "cli"))
+        tracker.handle(event("Notification", entrypoint: "cli",
+                             message: "Claude is waiting for your input"))
+
+        XCTAssertEqual(latest().0, .idle, "a finished turn is rest, not a request")
+        XCTAssertEqual(latest().2, "")
+    }
+
+    func testARealApprovalStillAsks() {
+        let tracker = SessionTracker()
+        let latest = capture(tracker)
+
+        tracker.handle(event("Notification", entrypoint: "cli",
+                             message: "Claude needs your permission to use Bash"))
+
+        XCTAssertEqual(latest().0, .waiting)
+        XCTAssertEqual(latest().2, "Claude needs your permission to use Bash")
     }
 
     func testAPayloadWithoutAnEventNameIsRejected() {

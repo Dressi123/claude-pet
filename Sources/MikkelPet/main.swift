@@ -50,6 +50,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PetViewDelegate {
     private let scaleKey = "PetScale"
     private let backgroundKey = "FollowBackgroundSessions"
     private let speedKey = "PetSpeed"
+    private let sleepKey = "PetSleepAfter"
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // No Dock icon, no main menu: the pet lives in the menu bar.
@@ -112,6 +113,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PetViewDelegate {
         let view = PetView(atlas: atlas)
         view.scale = CGFloat(scale)
         view.speed = UserDefaults.standard.object(forKey: speedKey) as? Double ?? 1.7
+        view.sleepAfter = UserDefaults.standard.object(forKey: sleepKey) as? Double ?? 240
         view.delegate = self
         petView = view
 
@@ -329,6 +331,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PetViewDelegate {
     // MARK: - PetViewDelegate
 
     func petViewWasClicked(_ view: PetView) {
+        petView.wake()
         petView.apply(resting: .idle, oneShot: .waving, label: atlas.manifest.description)
         savePosition()
     }

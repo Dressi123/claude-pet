@@ -62,6 +62,12 @@ final class PetView: NSView {
     /// While idle, Mikkel watches the pointer using the 16 look directions.
     var pointerTrackingEnabled = true
 
+    /// How long everything has to stay quiet before he settles down to sleep.
+    /// Nought disables it.
+    var sleepAfter: TimeInterval = 240
+    private var quietSince = CACurrentMediaTime()
+    private(set) var isAsleep = false
+
     /// Multiplies every frame duration. The atlas's own timings are tuned for
     /// a lively pet; a companion that animates all day reads better slower.
     var speed: Double = 1.7
@@ -134,6 +140,12 @@ final class PetView: NSView {
     // MARK: - State
 
     func apply(resting: PetState, oneShot: PetState?, label: String) {
+        // Anything other than a silent idle counts as activity.
+        if resting != .idle || oneShot != nil || !label.isEmpty {
+            quietSince = CACurrentMediaTime()
+            wake()
+        }
+
         // One-shots are the reactions worth interrupting for, so they skip the
         // dwell window.
         if let oneShot, oneShot != oneShotState {
@@ -305,6 +317,7 @@ final class PetView: NSView {
     }
 
     private func tick() {
+        if updateSleep() { return }
         updateBubble()
         if !isDragging, let pending = pendingResting,
            CACurrentMediaTime() - restingStartedAt >= Self.minimumDwell {
@@ -355,6 +368,33 @@ final class PetView: NSView {
         }
         let frame = min(currentFrame, displayState.frameCount - 1)
         spriteLayer.contents = atlas.cell(state: displayState, frame: frame)
+    }
+
+    /// Settles him down once nothing has happened for a while, and keeps him
+    /// there. Returns true when the rest of the frame should be skipped, since
+    /// a sleeping pet neither animates nor follows the pointer.
+    private func updateSleep() -> Bool {
+        guard sleepAfter > 0 else { return false }
+        if !isAsleep {
+            guard oneShotState == nil, restingState == .idle, bubbleText.isEmpty,
+                  dragOrigin == nil,
+                  CACurrentMediaTime() - quietSince >= sleepAfter
+            else { return false }
+            isAsleep = true
+            lookIndex = nil
+            spriteLayer.contents = atlas.sleepingCell
+            debugTrace("asleep", dedupe: false)
+        }
+        return true
+    }
+
+    /// Brings him back the moment anything happens, including a click.
+    func wake() {
+        quietSince = CACurrentMediaTime()
+        guard isAsleep else { return }
+        isAsleep = false
+        resetFrame()
+        debugTrace("awake", dedupe: false)
     }
 
     /// Holds one pose for a few seconds, then cuts to a different one. Used for
@@ -444,6 +484,7 @@ final class PetView: NSView {
             }
             return
         }
+        wake()
         dragOrigin = NSEvent.mouseLocation
         didDrag = false
     }

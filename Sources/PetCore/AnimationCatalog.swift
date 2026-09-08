@@ -99,6 +99,15 @@ public enum AtlasGeometry {
     /// the deadzone and for the menu bar icon.
     public static let neutralCell = (row: 0, column: 6)
 
+    /// Where Mikkel rests when nothing has happened for a while.
+    ///
+    /// Placeholder: the atlas has no sleeping pose, so this borrows the idle
+    /// row's closed-eye blink, which at least reads calm. The lying-down frame
+    /// in the failed row has the right posture but sad brows, so it reads
+    /// dejected rather than asleep. Point this at a proper curled-up cell when
+    /// one exists and nothing else needs to change.
+    public static let sleepingCell = (row: 0, column: 2)
+
     /// Look direction `index` (0 = up / 12 o'clock, clockwise in 22.5-degree
     /// steps) to its atlas cell. Row 9 holds 000-157.5, row 10 holds 180-337.5.
     public static func lookCell(index: Int) -> (row: Int, column: Int) {

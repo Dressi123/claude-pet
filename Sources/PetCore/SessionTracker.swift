@@ -134,8 +134,17 @@ public final class SessionTracker {
             // here made a run of reads restart the animation twice per tool.
 
         case "Notification":
-            snapshot.state = .waiting
-            snapshot.label = Phrasebook.needsYou(event.message ?? event.summary)
+            let text = event.message ?? event.summary
+            if Phrasebook.isIdlePrompt(text) {
+                // Claude has finished and is waiting on you. That is the end of
+                // the turn, not a request, so settle rather than ask.
+                settleUnfinishedTools(sessionID: id, into: &snapshot)
+                snapshot.state = .idle
+                snapshot.label = ""
+            } else {
+                snapshot.state = .waiting
+                snapshot.label = Phrasebook.needsYou(text)
+            }
 
         case "SubagentStop":
             snapshot.oneShot = .jumping

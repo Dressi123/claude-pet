@@ -78,6 +78,10 @@ final class Atlas {
         return self.cell(row: cell.row, column: cell.column)
     }
 
+    var sleepingCell: CGImage? {
+        cell(row: AtlasGeometry.sleepingCell.row, column: AtlasGeometry.sleepingCell.column)
+    }
+
     var neutralCell: CGImage? {
         cell(row: AtlasGeometry.neutralCell.row, column: AtlasGeometry.neutralCell.column)
     }

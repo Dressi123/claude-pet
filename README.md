@@ -49,6 +49,22 @@ cycle while he is busy, and a clock fades in once a job passes four seconds, so
 a slow build is visibly slow. The border picks up the state: gold when he needs
 you, warm red when something broke, quiet blue otherwise.
 
+## Sleeping
+
+After four minutes with nothing happening he curls up and dozes: no bubble, no
+pointer tracking, no animation. Any event wakes him, and so does clicking him.
+The delay is on the menu, or turn it off.
+
+The pose is a placeholder. The atlas has no sleeping cell, so this borrows the
+idle row's closed-eye blink, which at least reads calm. The lying-down frame in
+the failed row has the right curled posture but sad brows, so it reads dejected
+rather than asleep. `AtlasGeometry.sleepingCell` is the only thing to change
+when a proper pose exists.
+
+Finishing a turn is rest, not a request. Claude Code notifies both when it needs
+a decision and when it has simply finished and is waiting, and treating the
+second as a request left him asking for input after the work was already done.
+
 ## Two playback modes
 
 The states he sits in while Claude works, idle, working, inspecting and asking,
