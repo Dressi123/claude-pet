@@ -77,6 +77,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PetViewDelegate {
         }
         // MIKKEL_PET_DEBUG=1 traces the hook stream while wiring things up.
         let debug = ProcessInfo.processInfo.environment["MIKKEL_PET_DEBUG"] == "1"
+        tracker.onAllSessionsEnded = { [weak self] in self?.petView.sleepNow() }
         server.onEvent = { [weak self] event in
             if debug {
                 FileHandle.standardError.write(Data(

@@ -52,8 +52,16 @@ you, warm red when something broke, quiet blue otherwise.
 ## Sleeping
 
 After four minutes with nothing happening he curls up and dozes: no bubble, no
-pointer tracking, no animation. Any event wakes him, and so does clicking him.
-The delay is on the menu, or turn it off.
+pointer tracking, no animation. He also settles at once when the last Claude
+Code session closes, since there is plainly nothing left to watch; closing one
+of several does not, and a session that merely falls silent is left to the
+timer, because it may still come back. Any event wakes him, and so does
+clicking him. The delay is on the menu, or turn it off.
+
+A line that has stopped changing fades after ten seconds, so a finished job
+does not leave "My helper's finished" on screen indefinitely. Lines that are
+still working are exempt, since their dots and clock are visibly live. A faded
+bubble counts as empty for sleeping, or he would never settle.
 
 He settles properly rather than cutting: four frames lower him from sitting
 into a curl with his eyes closing, then four more breathe. The settle's last

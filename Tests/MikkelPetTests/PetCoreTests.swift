@@ -487,6 +487,40 @@ final class SessionTrackerTests: XCTestCase {
         XCTAssertEqual(latest().2, "Claude needs your permission to use Bash")
     }
 
+    /// Closing the last session means there is nothing left to watch, so the
+    /// pet should settle at once rather than wait out the idle timer.
+    func testTheLastSessionEndingIsAnnounced() {
+        let tracker = SessionTracker()
+        tracker.onChange = { _, _, _ in }
+        var announced = 0
+        tracker.onAllSessionsEnded = { announced += 1 }
+
+        tracker.handle(event("SessionStart", session: "a", entrypoint: "cli"))
+        tracker.handle(event("SessionStart", session: "b", entrypoint: "cli"))
+
+        tracker.handle(event("SessionEnd", session: "a", entrypoint: "cli"))
+        XCTAssertEqual(announced, 0, "another session is still open")
+
+        tracker.handle(event("SessionEnd", session: "b", entrypoint: "cli"))
+        XCTAssertEqual(announced, 1)
+    }
+
+    /// A session that merely falls silent may still come back, so only a real
+    /// SessionEnd should settle him early.
+    func testGoingQuietDoesNotAnnounceTheEnd() {
+        let tracker = SessionTracker()
+        tracker.onChange = { _, _, _ in }
+        var announced = 0
+        tracker.onAllSessionsEnded = { announced += 1 }
+
+        tracker.handle(event("PreToolUse", session: "a", tool: "Bash", id: "1", entrypoint: "cli"))
+        tracker.backdateForTesting(
+            sessionID: "a", to: Date().addingTimeInterval(-SessionTracker.livelinessWindow - 10))
+        tracker.refresh()
+
+        XCTAssertEqual(announced, 0)
+    }
+
     func testAPayloadWithoutAnEventNameIsRejected() {
         XCTAssertNil(PetEvent(json: ["session_id": "s"]))
     }

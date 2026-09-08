@@ -73,6 +73,12 @@ public final class SessionTracker {
     /// Tool calls that have started but not reported back, per session.
     private var outstandingTools: [String: Set<String>] = [:]
 
+    /// Fires when the last session ends, so the pet can settle straight away
+    /// instead of waiting out the idle timer. Only a real `SessionEnd` counts:
+    /// a session that merely falls silent is handled by the timer, because it
+    /// may well come back.
+    public var onAllSessionsEnded: (() -> Void)?
+
     /// Fires whenever the aggregate state or label changes.
     public var onChange: ((PetState, PetState?, String) -> Void)?
 
@@ -162,6 +168,7 @@ public final class SessionTracker {
             // pet permanently blank.
             if pinnedSessionID == id { pinnedSessionID = nil }
             publish()
+            if sessions.isEmpty { onAllSessionsEnded?() }
             return
 
         default:

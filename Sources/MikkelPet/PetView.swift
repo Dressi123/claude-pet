@@ -35,6 +35,11 @@ final class PetView: NSView {
     /// A quick job needs no clock; the timer is for the ones that drag.
     private static let timerAppearsAfter: CFTimeInterval = 4
 
+    /// How long a line that has stopped changing stays up before it fades.
+    /// Busy lines are exempt, since their dots and clock are still moving.
+    private static let bubbleLingers: CFTimeInterval = 10
+    private var bubbleFaded = false
+
     /// The looping state the pet returns to.
     private var restingState: PetState = .idle
     /// A one-shot (wave, jump, sad) that plays once, then hands back.
@@ -146,7 +151,7 @@ final class PetView: NSView {
 
     func apply(resting: PetState, oneShot: PetState?, label: String) {
         // Anything other than a silent idle counts as activity.
-        if resting != .idle || oneShot != nil || !label.isEmpty {
+        if resting != .idle || oneShot != nil || (!label.isEmpty && label != bubbleText) {
             quietSince = CACurrentMediaTime()
             wake()
         }
@@ -191,6 +196,7 @@ final class PetView: NSView {
         bubbleText = text
         lineStartedAt = CACurrentMediaTime()
         dotPhase = 0
+        bubbleFaded = false
         let visible = !text.isEmpty
         CATransaction.begin()
         CATransaction.setAnimationDuration(0.18)
@@ -233,12 +239,30 @@ final class PetView: NSView {
     /// Rebuilds the bubble each frame: dots cycle, the clock ticks, and the
     /// shape follows the text width so short lines get a small bubble.
     private func updateBubble() {
-        guard !bubbleText.isEmpty else { return }
+        guard !bubbleText.isEmpty, !bubbleFaded else { return }
         let now = CACurrentMediaTime()
         guard now - lastBubbleTick >= 0.4 else { return }
         lastBubbleTick = now
+
+        // Something finished a while ago and nothing has replaced it. Leaving
+        // "My helper's finished" up forever reads as stuck, so retire it.
+        if !isBusyLine, now - lineStartedAt >= Self.bubbleLingers {
+            fadeBubble()
+            return
+        }
+
         if isBusyLine { dotPhase = (dotPhase + 1) % 4 }
         layoutBubble()
+    }
+
+    private func fadeBubble() {
+        bubbleFaded = true
+        CATransaction.begin()
+        CATransaction.setAnimationDuration(0.45)
+        bubbleLayer.opacity = 0
+        bubbleBackground.opacity = 0
+        timerLayer.opacity = 0
+        CATransaction.commit()
     }
 
     private func layoutBubble() {
@@ -381,7 +405,8 @@ final class PetView: NSView {
     private func updateSleep() -> Bool {
         guard sleepAfter > 0 else { return false }
         if !isAsleep {
-            guard oneShotState == nil, restingState == .idle, bubbleText.isEmpty,
+            guard oneShotState == nil, restingState == .idle,
+                  bubbleText.isEmpty || bubbleFaded,
                   dragOrigin == nil,
                   CACurrentMediaTime() - quietSince >= sleepAfter
             else { return false }
@@ -417,6 +442,20 @@ final class PetView: NSView {
         }
         let current = sleepIsSettling ? SleepRow.settle : SleepRow.breathe
         spriteLayer.contents = atlas.sleepCell(column: current[min(sleepStep, current.count - 1)])
+    }
+
+    /// Settles him immediately rather than waiting out the idle timer. Used
+    /// when the last Claude Code session closes, where there is plainly nothing
+    /// left to watch. Respects the sleep setting being turned off.
+    func sleepNow() {
+        guard sleepAfter > 0, !isAsleep, dragOrigin == nil else { return }
+        setBubble("")
+        oneShotState = nil
+        restingState = .idle
+        pendingResting = nil
+        // Backdating the quiet clock lets the normal path start the settle on
+        // the next frame, so there is one way in and out of sleep.
+        quietSince = CACurrentMediaTime() - sleepAfter
     }
 
     /// Brings him back the moment anything happens, including a click.
