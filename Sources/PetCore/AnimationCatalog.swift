@@ -35,7 +35,10 @@ public enum PetState: String, CaseIterable {
         case .idle: return [280, 110, 110, 140, 140, 320]
         case .runningRight, .runningLeft: return [120, 120, 120, 120, 120, 120, 120, 220]
         case .waving: return [140, 140, 140, 280]
-        case .jumping: return [140, 140, 140, 140, 280]
+        // A fuller eight-frame arc than the contract's five: settle, crouch,
+        // launch, rise, peak, fall, land, recover. Quick through the air and
+        // slower at either end, so the leap has some snap to it.
+        case .jumping: return [150, 110, 90, 90, 130, 90, 110, 220]
         case .failed: return [140, 140, 140, 140, 140, 140, 140, 240]
         case .waiting: return [150, 150, 150, 150, 150, 260]
         case .running: return [120, 120, 120, 120, 120, 220]

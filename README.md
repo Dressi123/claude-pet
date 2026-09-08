@@ -70,6 +70,13 @@ Finishing a turn is rest, not a request. Claude Code notifies both when it needs
 a decision and when it has simply finished and is waiting, and treating the
 second as a request left him asking for input after the work was already done.
 
+## Jumping
+
+The contract gives jumping five frames. This atlas uses all eight, for a proper
+arc: settle, crouch, launch, rise, peak, fall, land, recover. Frames 0 and 7 are
+the same grounded pose, so it starts and ends where it began. The timing is
+quick through the air and slower at either end, which gives the leap some snap.
+
 ## Two playback modes
 
 The states he sits in while Claude works, idle, working, inspecting and asking,
