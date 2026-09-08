@@ -2,12 +2,23 @@
 
 A desktop pet for macOS that reacts to what Claude Code is doing. Mikkel is the
 navy-and-gold arctic fox hatched with the Codex `hatch-pet` skill, reusing that
-spritesheet unchanged and driving it from Claude Code's hook system instead.
+spritesheet and driving it from Claude Code's hook system instead.
+
+<p align="center">
+  <img src="docs/hero.png" alt="Mikkel working, with a speech bubble reading &quot;Let me run the test suite&quot; and a timer at 14 seconds" width="260">
+  &nbsp;&nbsp;&nbsp;
+  <img src="docs/asking.png" alt="Mikkel with a paw raised, saying Claude needs your permission to use Bash" width="330">
+</p>
 
 ## What he does
 
 He sits on the desktop above other windows and changes animation as Claude Code
 works:
+
+| | | | | | | |
+|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
+| <img src="docs/idle.png" width="84"> | <img src="docs/working.png" width="84"> | <img src="docs/inspecting.png" width="84"> | <img src="docs/waiting.png" width="84"> | <img src="docs/jumping.png" width="84"> | <img src="docs/failed.png" width="84"> | <img src="docs/asleep.png" width="84"> |
+| idle | working | inspecting | asking | subagent done | something broke | asleep |
 
 | Claude Code is doing            | Mikkel        |
 | ------------------------------- | ------------- |
@@ -242,3 +253,13 @@ geometry.
 
 `MIKKEL_PET_DEBUG=1` traces hook events, state changes and look indices to
 stderr. `MIKKEL_PET_SOCKET` overrides the socket path for both binaries.
+
+## Regenerating the README artwork
+
+The images under `docs/` are rendered straight from the atlas, so they always
+match what the app draws and carry no desktop background with them:
+
+```bash
+swiftc -O docs/render-readme-art.swift -o /tmp/render-art
+/tmp/render-art Sources/MikkelPet/Resources/spritesheet.png docs
+```
