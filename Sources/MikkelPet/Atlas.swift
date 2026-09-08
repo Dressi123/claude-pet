@@ -16,6 +16,8 @@ final class Atlas {
     let manifest: PetManifest
     private let sheet: CGImage
     private var cellCache: [Int: CGImage] = [:]
+    /// True when the atlas carries the extra sleep row past the contract's 11.
+    let hasSleepRow: Bool
 
     var cellSize: CGSize {
         CGSize(width: AtlasGeometry.cellWidth, height: AtlasGeometry.cellHeight)
@@ -45,11 +47,17 @@ final class Atlas {
             throw AtlasError.missingResource(manifest.spritesheetPath)
         }
 
+        // The contract fixes eleven rows. One extra row is allowed for sleeping,
+        // which the contract has no state for; anything else is a bad atlas.
         let expectedWidth = AtlasGeometry.columns * AtlasGeometry.cellWidth
-        let expectedHeight = AtlasGeometry.rows * AtlasGeometry.cellHeight
-        guard image.width == expectedWidth, image.height == expectedHeight else {
+        let contractHeight = AtlasGeometry.contractRows * AtlasGeometry.cellHeight
+        let withSleepHeight = contractHeight + AtlasGeometry.cellHeight
+        guard image.width == expectedWidth,
+              image.height == contractHeight || image.height == withSleepHeight
+        else {
             throw AtlasError.wrongDimensions(width: image.width, height: image.height)
         }
+        hasSleepRow = image.height == withSleepHeight
         sheet = image
     }
 
@@ -78,8 +86,13 @@ final class Atlas {
         return self.cell(row: cell.row, column: cell.column)
     }
 
-    var sleepingCell: CGImage? {
-        cell(row: AtlasGeometry.sleepingCell.row, column: AtlasGeometry.sleepingCell.column)
+    /// A frame of the sleep row, or the still fallback when the atlas has none.
+    func sleepCell(column: Int) -> CGImage? {
+        guard hasSleepRow else {
+            return cell(row: AtlasGeometry.sleepingCell.row,
+                        column: AtlasGeometry.sleepingCell.column)
+        }
+        return cell(row: SleepRow.row, column: column)
     }
 
     var neutralCell: CGImage? {
@@ -98,7 +111,7 @@ final class Atlas {
             case .unsupportedVersion(let version):
                 return "Pet declares spriteVersionNumber \(version); this app needs 2."
             case .wrongDimensions(let width, let height):
-                return "Spritesheet is \(width)x\(height); the v2 contract requires 1536x2288."
+                return "Spritesheet is \(width)x\(height); expected 1536x2288, or 1536x2496 with a sleep row."
             }
         }
     }

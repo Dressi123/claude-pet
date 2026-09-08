@@ -91,7 +91,8 @@ public enum PetState: String, CaseIterable {
 
 public enum AtlasGeometry {
     public static let columns = 8
-    public static let rows = 11
+    /// The v2 contract's height. An atlas may carry one extra row beyond it.
+    public static let contractRows = 11
     public static let cellWidth = 192
     public static let cellHeight = 208
     public static let lookDirectionCount = 16
@@ -99,13 +100,9 @@ public enum AtlasGeometry {
     /// the deadzone and for the menu bar icon.
     public static let neutralCell = (row: 0, column: 6)
 
-    /// Where Mikkel rests when nothing has happened for a while.
-    ///
-    /// Placeholder: the atlas has no sleeping pose, so this borrows the idle
-    /// row's closed-eye blink, which at least reads calm. The lying-down frame
-    /// in the failed row has the right posture but sad brows, so it reads
-    /// dejected rather than asleep. Point this at a proper curled-up cell when
-    /// one exists and nothing else needs to change.
+    /// Fallback for an atlas without a sleep row: the idle blink, which at
+    /// least reads calm. The lying-down frame in the failed row has the right
+    /// posture but sad brows, so it reads dejected rather than asleep.
     public static let sleepingCell = (row: 0, column: 2)
 
     /// Look direction `index` (0 = up / 12 o'clock, clockwise in 22.5-degree
@@ -114,4 +111,22 @@ public enum AtlasGeometry {
         let i = ((index % lookDirectionCount) + lookDirectionCount) % lookDirectionCount
         return i < columns ? (9, i) : (10, i - columns)
     }
+}
+
+/// The sleep row, one past the v2 contract's eleven.
+///
+/// Sleeping is not one of the contract's states, so this lives outside
+/// `PetState`: it is driven by inactivity rather than by anything Claude does,
+/// and an atlas that stops at eleven rows simply falls back to a still pose.
+public enum SleepRow {
+    public static let row = 11
+
+    /// He lowers himself from sitting into a curl, eyes closing. Plays once.
+    public static let settle = [0, 1, 2, 3]
+    public static let settleDurations = [420, 420, 460, 520]
+
+    /// Breathing. Frame 7 repeats frame 4's pose, which lands as a natural
+    /// pause at the bottom of the breath rather than a stutter.
+    public static let breathe = [4, 5, 6, 7]
+    public static let breatheDurations = [820, 700, 700, 820]
 }

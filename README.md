@@ -55,11 +55,16 @@ After four minutes with nothing happening he curls up and dozes: no bubble, no
 pointer tracking, no animation. Any event wakes him, and so does clicking him.
 The delay is on the menu, or turn it off.
 
-The pose is a placeholder. The atlas has no sleeping cell, so this borrows the
-idle row's closed-eye blink, which at least reads calm. The lying-down frame in
-the failed row has the right curled posture but sad brows, so it reads dejected
-rather than asleep. `AtlasGeometry.sleepingCell` is the only thing to change
-when a proper pose exists.
+He settles properly rather than cutting: four frames lower him from sitting
+into a curl with his eyes closing, then four more breathe. The settle's last
+frame and the loop's first are the same drawing, so the handover has no jump.
+
+That sleep row is a twelfth row, one past the eleven the v2 contract defines,
+making this atlas 1536x2496. The contract has no sleeping state, and the eleven
+rows were full: fourteen cells were free but the longest contiguous run was
+four. An atlas that stops at eleven rows still loads, and falls back to a still
+closed-eye pose. Keep `~/.codex/pets/mikkel` at eleven rows, since Codex itself
+rejects anything taller.
 
 Finishing a turn is rest, not a request. Claude Code notifies both when it needs
 a decision and when it has simply finished and is waiting, and treating the

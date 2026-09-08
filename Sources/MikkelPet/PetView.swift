@@ -67,6 +67,11 @@ final class PetView: NSView {
     var sleepAfter: TimeInterval = 240
     private var quietSince = CACurrentMediaTime()
     private(set) var isAsleep = false
+    /// Where we are in the sleep row: the settle plays once, then breathing
+    /// loops. Indices are into SleepRow.settle and SleepRow.breathe.
+    private var sleepStep = 0
+    private var sleepIsSettling = true
+    private var sleepFrameStartedAt = CACurrentMediaTime()
 
     /// Multiplies every frame duration. The atlas's own timings are tuned for
     /// a lively pet; a companion that animates all day reads better slower.
@@ -382,10 +387,36 @@ final class PetView: NSView {
             else { return false }
             isAsleep = true
             lookIndex = nil
-            spriteLayer.contents = atlas.sleepingCell
+            sleepStep = 0
+            sleepIsSettling = true
+            sleepFrameStartedAt = CACurrentMediaTime()
+            spriteLayer.contents = atlas.sleepCell(column: SleepRow.settle[0])
             debugTrace("asleep", dedupe: false)
+            return true
         }
+        advanceSleepFrame()
         return true
+    }
+
+    /// Plays the settle once, then loops the breathing. Same wall-clock timing
+    /// as the other rows, and the Pace setting stretches it alike.
+    private func advanceSleepFrame() {
+        let frames = sleepIsSettling ? SleepRow.settle : SleepRow.breathe
+        let durations = sleepIsSettling ? SleepRow.settleDurations : SleepRow.breatheDurations
+        let step = min(sleepStep, frames.count - 1)
+        let elapsed = (CACurrentMediaTime() - sleepFrameStartedAt) * 1000
+        if elapsed >= Double(durations[step]) * speed {
+            sleepFrameStartedAt = CACurrentMediaTime()
+            sleepStep = step + 1
+            if sleepStep >= frames.count {
+                sleepStep = 0
+                // The settle ends on the breathing loop's opening pose, so this
+                // hands over without a jump.
+                sleepIsSettling = false
+            }
+        }
+        let current = sleepIsSettling ? SleepRow.settle : SleepRow.breathe
+        spriteLayer.contents = atlas.sleepCell(column: current[min(sleepStep, current.count - 1)])
     }
 
     /// Brings him back the moment anything happens, including a click.

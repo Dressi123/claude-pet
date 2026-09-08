@@ -4,8 +4,19 @@ import XCTest
 final class AtlasGeometryTests: XCTestCase {
     func testAtlasMatchesTheV2Contract() {
         XCTAssertEqual(AtlasGeometry.columns * AtlasGeometry.cellWidth, 1536)
-        XCTAssertEqual(AtlasGeometry.rows * AtlasGeometry.cellHeight, 2288)
+        XCTAssertEqual(AtlasGeometry.contractRows * AtlasGeometry.cellHeight, 2288)
         XCTAssertEqual(AtlasGeometry.lookDirectionCount, 16)
+    }
+
+    /// The settle has to end on the breathing loop's opening pose, or he jumps
+    /// at the handover. Codex draws frame 3 and frame 4 identically for this.
+    func testTheSleepRowIsShapedForASeamlessHandover() {
+        XCTAssertEqual(SleepRow.settle.count, SleepRow.settleDurations.count)
+        XCTAssertEqual(SleepRow.breathe.count, SleepRow.breatheDurations.count)
+        XCTAssertEqual(SleepRow.settle.last! + 1, SleepRow.breathe.first!)
+        let all = SleepRow.settle + SleepRow.breathe
+        XCTAssertEqual(all, Array(0..<AtlasGeometry.columns), "the row must be used in order")
+        XCTAssertEqual(SleepRow.row, AtlasGeometry.contractRows, "sleep sits past the contract")
     }
 
     func testEveryStateFitsItsRow() {
@@ -13,6 +24,7 @@ final class AtlasGeometryTests: XCTestCase {
             XCTAssertLessThanOrEqual(state.frameCount, AtlasGeometry.columns, "\(state) overflows its row")
             XCTAssertGreaterThan(state.frameCount, 0)
             XCTAssertTrue((0...8).contains(state.row))
+            XCTAssertNotEqual(state.row, SleepRow.row)
         }
         // Rows 0-8 each belong to exactly one state.
         XCTAssertEqual(Set(PetState.allCases.map(\.row)).count, 9)
