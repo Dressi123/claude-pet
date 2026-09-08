@@ -54,11 +54,34 @@ so `Phrasebook` carries its own.
 An approval prompt keeps Claude's own message, because it says what is actually
 being asked better than anything of ours would.
 
-The bubble sizes itself to the text and has a tail pointing at him, so "All
-done" gets a small bubble rather than the same slab as a full sentence. Dots
-cycle while he is busy, and a clock fades in once a job passes four seconds, so
-a slow build is visibly slow. The border picks up the state: gold when he needs
-you, warm red when something broke, quiet blue otherwise.
+He gets two balloons, and which one appears says what is happening before a
+word of it is read. While he is working he **thinks**: a scalloped cloud with
+two little bubbles trailing down to him. When he is addressing you — asking for
+something, reporting a failure, saying he is done — he **speaks**, and the
+cloud becomes a balloon with a hooked tail. The tail is walked as part of the
+outline rather than dropped in behind it, so nothing is stroked across it, and
+it leans off centre because a tail on a plumb line is a tooltip arrow.
+
+The balloon inflates out of its own tail on a spring rather than fading in on
+the spot, and deflates back the same way. Its fill is a lit gradient over a
+soft shadow, so it floats above the desktop instead of lying flat on it.
+
+Type is Charter for what he says and Menlo for the labels around it: a book
+serif for the sentence, a terminal mono for the machine's own words, which is
+the whole of what he does. Both ship with macOS, so nothing is bundled.
+
+The balloon sizes itself to the text, so "All done" gets a small one rather
+than the same slab as a full sentence. It is never wider than Mikkel himself: a
+long line wraps downward instead, up to four lines, and truncates past that. A
+balloon wider than the pet stops reading as something he is saying.
+
+A header names the session the line came from, taken from that session's
+working directory, so two Claude Code windows are told apart without opening
+the menu. It uses the same wording the menu does, and falls back to "session"
+for a session with no directory. Dots cycle while he is busy, and a clock fades
+in beside the session name once a job passes four seconds, so a slow build is
+visibly slow. The border picks up the state: gold when he needs you, warm red
+when something broke, quiet blue otherwise.
 
 ## Sleeping
 
@@ -70,7 +93,7 @@ timer, because it may still come back. Any event wakes him, and so does
 clicking him. The delay is on the menu, or turn it off.
 
 A line that has stopped changing fades after ten seconds, so a finished job
-does not leave "My helper's finished" on screen indefinitely. Lines that are
+does not leave "All done" on screen indefinitely. Lines that are
 still working are exempt, since their dots and clock are visibly live. A faded
 bubble counts as empty for sleeping, or he would never settle.
 
@@ -99,7 +122,7 @@ quick through the air and slower at either end, which gives the leap some snap.
 ## Two playback modes
 
 The states he sits in while Claude works, idle, working, inspecting and asking,
-do not run as flipbooks. Flipping six poses a second reads as frantic when it
+do not run as flipbooks. Nor does the sad reaction to a failure. Flipping six poses a second reads as frantic when it
 lasts for minutes. Instead he holds one pose for a few seconds, then cuts to
 another at random, never repeating the pose he is already in.
 
@@ -108,9 +131,17 @@ way an animal glances up mid-rest; otherwise he settles. Measured over 30
 seconds at the default Pace: twelve changes, from 1.0 to 4.5 seconds, averaging
 2.7. A single fixed interval read as metronomic.
 
-Locomotion and the one-shots, waving, jumping and the sad reaction, still run as
-real animations. Those are brief and deliberate, and there the motion is the
-whole point.
+Locomotion and the motion one-shots, waving and jumping, still run as real
+animations. Those are over in half a second and there the movement is the whole
+point.
+
+The sad reaction used to be one of them, and it was wrong. Its eight cells are
+eight ways of looking glum rather than eight steps of a movement, so running
+them in order cycled the lot in about a second and read as panic instead of
+disappointment. It holds them now, like the working states. Because a held
+reaction has no frames to run out of, it ends on a clock instead: seven seconds,
+long enough to settle on a few poses and short enough that he is himself again
+before the bubble fades.
 
 Two things keep him calm. He holds each pose for at least 0.6 seconds, because a
 busy turn can publish a dozen state changes a second and without that floor he
@@ -146,6 +177,17 @@ the pin when it ends, so the pet never goes permanently blank.
 The menu is on the pet as well as the menu bar, because a status icon can be
 pushed off a crowded menu bar or hidden behind the notch. Right-click or
 control-click him.
+
+He hops when the pointer arrives over him. It fires on arrival rather than on
+being over him, so crossing back and forth cannot set him bouncing, and there is
+a few seconds' cooldown so a pointer that only passes through on its way
+somewhere else does not set him off again immediately. He will not do it while
+asleep or while being carried. The hop is read from the polled pointer position
+rather than a tracking area, because the app is an accessory and spends its life
+inactive, where enter and exit events are a fight. It says nothing about what
+Claude is doing, so unlike every other reaction it does not touch the bubble:
+the dots keep cycling, the clock keeps running, and a thought cloud stays a
+thought cloud. Turn it off with "Hop when you hover" in the menu.
 
 Headless `claude -p` sessions are ignored by default. Hooks that start their own
 Claude session, which is what a session-summary Stop hook does, would otherwise
@@ -256,10 +298,27 @@ stderr. `MIKKEL_PET_SOCKET` overrides the socket path for both binaries.
 
 ## Regenerating the README artwork
 
-The images under `docs/` are rendered straight from the atlas, so they always
-match what the app draws and carry no desktop background with them:
+The sprite images under `docs/` are rendered straight from the atlas, so they
+always match what the app draws and carry no desktop background with them:
 
 ```bash
 swiftc -O docs/render-readme-art.swift -o /tmp/render-art
 /tmp/render-art Sources/MikkelPet/Resources/spritesheet.png docs
 ```
+
+The two balloon pictures come out of the app itself, so the artwork cannot
+drift from the design the way a second implementation of it did:
+
+```bash
+export MIKKEL_PET_SNAPSHOT_BG=none MIKKEL_PET_SNAPSHOT_CROP=1
+MIKKEL_PET_SNAPSHOT_SETTLE=6 .build/release/MikkelPet --snapshot docs/hero.png \
+  "Let me run the test suite" "claude-pet" running
+MIKKEL_PET_SNAPSHOT_SETTLE=3 .build/release/MikkelPet --snapshot docs/asking.png \
+  "Claude needs your permission to use Bash" "second-brain" waiting
+```
+
+`--snapshot` exists because screen recording is denied for the terminal, so
+there is otherwise no way to look at the pet while working on it. It draws the
+real view tree offscreen. The settle time matters: a state waits out a dwell
+window before it commits, and the elapsed clock only appears once a job passes
+four seconds.

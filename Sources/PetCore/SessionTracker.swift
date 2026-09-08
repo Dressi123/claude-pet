@@ -79,10 +79,18 @@ public final class SessionTracker {
     /// may well come back.
     public var onAllSessionsEnded: (() -> Void)?
 
-    /// Fires whenever the aggregate state or label changes.
-    public var onChange: ((PetState, PetState?, String) -> Void)?
+    /// Fires whenever the aggregate state or label changes. The last argument
+    /// is the name of the session the label came from, so the bubble can say
+    /// who is talking when several Claude Code windows are open. It is empty
+    /// only when there is nothing to show.
+    public var onChange: ((PetState, PetState?, String, String) -> Void)?
 
     public var activeSessionCount: Int { sessions.count }
+
+    /// Matches the wording the status menu uses for a session with no cwd.
+    private static func displayName(_ snapshot: SessionSnapshot) -> String {
+        snapshot.projectName.isEmpty ? "session" : snapshot.projectName
+    }
 
     /// Read tools make Mikkel inspect; everything else makes him work.
     private static func state(forTool tool: String) -> PetState {
@@ -235,10 +243,11 @@ public final class SessionTracker {
         // Pinning overrides every other rule: show that session or nothing.
         if let pinned = pinnedSessionID {
             guard let snapshot = sessions[pinned] else {
-                onChange?(.idle, nil, "")
+                onChange?(.idle, nil, "", "")
                 return
             }
-            onChange?(snapshot.state, snapshot.oneShot, snapshot.label)
+            onChange?(snapshot.state, snapshot.oneShot, snapshot.label,
+                      Self.displayName(snapshot))
             if snapshot.oneShot != nil { sessions[pinned]?.oneShot = nil }
             return
         }
@@ -258,10 +267,11 @@ public final class SessionTracker {
             return lhs.value.updatedAt < rhs.value.updatedAt
         }
         guard let winner else {
-            onChange?(.idle, nil, "")
+            onChange?(.idle, nil, "", "")
             return
         }
-        onChange?(winner.value.state, winner.value.oneShot, winner.value.label)
+        onChange?(winner.value.state, winner.value.oneShot, winner.value.label,
+                  Self.displayName(winner.value))
 
         // One-shots are edge-triggered: waving and jumping happen once, at the
         // moment they are announced. Consuming here stops a later, unrelated

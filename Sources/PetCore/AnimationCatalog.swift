@@ -58,12 +58,30 @@ public enum PetState: String, CaseIterable {
 
     /// The status states are on screen for minutes at a time, so flipping their
     /// frames reads as frantic rather than busy. They hold a pose instead.
-    /// Locomotion and the one-shots stay as flipbooks, because those are brief
-    /// and the motion itself is the content.
+    /// Locomotion stays a flipbook, and so do the one-shots that are motions in
+    /// their own right: a wave and a jump are over in half a second and the
+    /// movement *is* the content.
+    ///
+    /// A failure is not a motion. Its eight cells are eight ways of looking
+    /// glum, and running them as a flipbook made him cycle through all of them
+    /// in about a second, which read as panic rather than disappointment. He
+    /// holds them instead, the same way he does while working.
     public var playback: Playback {
         switch self {
-        case .idle, .running, .review, .waiting: return .pose
-        case .runningRight, .runningLeft, .waving, .jumping, .failed: return .sequence
+        case .idle, .running, .review, .waiting, .failed: return .pose
+        case .runningRight, .runningLeft, .waving, .jumping: return .sequence
+        }
+    }
+
+    /// How long a one-shot that holds poses stays up before handing back. A
+    /// flipbook one-shot ends when its frames run out, but a posed one has no
+    /// frames to run out of, so it ends on a clock instead. Long enough to
+    /// settle on a few different poses, and short enough that he is himself
+    /// again before the bubble fades.
+    public var poseOneShotDuration: TimeInterval? {
+        switch self {
+        case .failed: return 7.0
+        default: return nil
         }
     }
 

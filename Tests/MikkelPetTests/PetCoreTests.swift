@@ -30,20 +30,37 @@ final class AtlasGeometryTests: XCTestCase {
         XCTAssertEqual(Set(PetState.allCases.map(\.row)).count, 9)
     }
 
-    /// Long-lived status poses are held; brief, deliberate motion is animated.
-    func testPlaybackModeMatchesHowLongAStateIsOnScreen() {
-        for state in [PetState.idle, .running, .review, .waiting] {
+    /// A state whose cells are a movement is animated; one whose cells are just
+    /// different looks is held. Time on screen is not the whole story: the sad
+    /// reaction is brief and still held, because its eight cells are eight ways
+    /// of looking glum rather than eight steps of a motion.
+    func testPlaybackModeMatchesWhetherTheCellsAreAMotion() {
+        for state in [PetState.idle, .running, .review, .waiting, .failed] {
             XCTAssertEqual(state.playback, .pose, "\(state) should hold a pose")
         }
-        for state in [PetState.runningRight, .runningLeft, .waving, .jumping, .failed] {
+        for state in [PetState.runningRight, .runningLeft, .waving, .jumping] {
             XCTAssertEqual(state.playback, .sequence, "\(state) should animate")
         }
     }
 
-    /// Every one-shot is a real animation, never a held pose.
-    func testOneShotsAreAlwaysAnimated() {
+    /// The one that actually matters: every one-shot needs something to end it,
+    /// or it pins the pet forever. An animated one ends when its frames run
+    /// out; a held one has no frames to run out of, so it needs a clock.
+    func testEveryOneShotHasSomethingToEndIt() {
         for state in PetState.allCases where state.isOneShot {
-            XCTAssertEqual(state.playback, .sequence, "\(state) plays once, so it must animate")
+            if state.playback == .pose {
+                XCTAssertNotNil(state.poseOneShotDuration,
+                                "\(state) is held and plays once, so it needs a duration")
+            }
+        }
+    }
+
+    /// A duration on a state that is not a held one-shot would never be read,
+    /// which makes it a lie about how that state behaves.
+    func testOnlyHeldOneShotsCarryADuration() {
+        for state in PetState.allCases where state.poseOneShotDuration != nil {
+            XCTAssertTrue(state.isOneShot, "\(state) is not a one-shot")
+            XCTAssertEqual(state.playback, .pose, "\(state) is animated, so its frames end it")
         }
     }
 
@@ -138,8 +155,10 @@ final class PhrasebookTests: XCTestCase {
 final class SessionTrackerTests: XCTestCase {
     private func event(_ name: String, session: String = "s", tool: String? = nil,
                        id: String? = nil, error: Bool = false,
-                       entrypoint: String? = nil, message: String? = nil) -> PetEvent {
+                       entrypoint: String? = nil, message: String? = nil,
+                       cwd: String? = nil) -> PetEvent {
         var json: [String: Any] = ["event": name, "session_id": session]
+        if let cwd { json["cwd"] = cwd }
         if let tool { json["tool_name"] = tool }
         if let id { json["tool_use_id"] = id }
         if error { json["tool_error"] = true }
@@ -148,10 +167,33 @@ final class SessionTrackerTests: XCTestCase {
         return PetEvent(json: json)!
     }
 
-    private func capture(_ tracker: SessionTracker) -> () -> (PetState, PetState?, String) {
-        var last: (PetState, PetState?, String) = (.idle, nil, "")
-        tracker.onChange = { last = ($0, $1, $2) }
+    /// The fourth element is the session name the bubble puts in its header.
+    private func capture(_ tracker: SessionTracker) -> () -> (PetState, PetState?, String, String) {
+        var last: (PetState, PetState?, String, String) = (.idle, nil, "", "")
+        tracker.onChange = { last = ($0, $1, $2, $3) }
         return { last }
+    }
+
+    func testTheBubbleIsToldWhichSessionIsSpeaking() {
+        let tracker = SessionTracker()
+        let latest = capture(tracker)
+
+        tracker.handle(event("SessionStart", session: "a", cwd: "/Users/x/code/claude-pet"))
+        XCTAssertEqual(latest().3, "claude-pet", "the header names the session's project")
+
+        // A session with no cwd still needs a header, and it has to match the
+        // word the status menu uses for the same session.
+        tracker.handle(event("SessionStart", session: "b"))
+        XCTAssertEqual(latest().3, "session")
+    }
+
+    func testNothingToShowMeansNoHeader() {
+        let tracker = SessionTracker()
+        let latest = capture(tracker)
+
+        tracker.handle(event("SessionStart", session: "a", cwd: "/Users/x/code/claude-pet"))
+        tracker.handle(event("SessionEnd", session: "a"))
+        XCTAssertEqual(latest().3, "", "an empty bubble must not keep a stale name")
     }
 
     func testReadToolsMakeHimInspectAndOtherToolsMakeHimWork() {
@@ -251,7 +293,7 @@ final class SessionTrackerTests: XCTestCase {
 
     func testStalePrunerDropsSessionsThatDiedWithoutSayingGoodbye() {
         let tracker = SessionTracker()
-        tracker.onChange = { _, _, _ in }
+        tracker.onChange = { _, _, _, _ in }
 
         tracker.handle(event("PreToolUse", session: "ghost", tool: "Bash", id: "a"))
         XCTAssertEqual(tracker.activeSessionCount, 1)
@@ -345,7 +387,7 @@ final class SessionTrackerTests: XCTestCase {
     func testAOneShotIsNotReplayedByALaterUnrelatedEvent() {
         let tracker = SessionTracker()
         var oneShots: [PetState?] = []
-        tracker.onChange = { _, oneShot, _ in oneShots.append(oneShot) }
+        tracker.onChange = { _, oneShot, _, _ in oneShots.append(oneShot) }
 
         tracker.handle(event("SessionStart", session: "a", entrypoint: "cli"))
         XCTAssertEqual(oneShots.last, .waving)
@@ -361,7 +403,7 @@ final class SessionTrackerTests: XCTestCase {
     func testARunOfReadsStaysInOnePose() {
         let tracker = SessionTracker()
         var states: [PetState] = []
-        tracker.onChange = { state, _, _ in states.append(state) }
+        tracker.onChange = { state, _, _, _ in states.append(state) }
 
         for i in 0..<4 {
             tracker.handle(event("PreToolUse", tool: "Read", id: "r\(i)", entrypoint: "cli"))
@@ -491,7 +533,7 @@ final class SessionTrackerTests: XCTestCase {
     /// pet should settle at once rather than wait out the idle timer.
     func testTheLastSessionEndingIsAnnounced() {
         let tracker = SessionTracker()
-        tracker.onChange = { _, _, _ in }
+        tracker.onChange = { _, _, _, _ in }
         var announced = 0
         tracker.onAllSessionsEnded = { announced += 1 }
 
@@ -509,7 +551,7 @@ final class SessionTrackerTests: XCTestCase {
     /// SessionEnd should settle him early.
     func testGoingQuietDoesNotAnnounceTheEnd() {
         let tracker = SessionTracker()
-        tracker.onChange = { _, _, _ in }
+        tracker.onChange = { _, _, _, _ in }
         var announced = 0
         tracker.onAllSessionsEnded = { announced += 1 }
 

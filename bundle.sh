@@ -15,10 +15,13 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 cp "$BIN/MikkelPet" "$APP/Contents/MacOS/MikkelPet"
 cp "$BIN/mikkel-hook" "$APP/Contents/MacOS/mikkel-hook"
-# SwiftPM emits the resource bundle beside the binary; the app looks it up
-# through Bundle.module, so it has to travel with the executable.
-cp -R "$BIN/MikkelPet_MikkelPet.bundle" "$APP/Contents/MacOS/" 2>/dev/null || \
-  cp -R "$BIN"/*.bundle "$APP/Contents/MacOS/"
+# The artwork goes in Contents/Resources, where an app bundle keeps its
+# resources and where a signature can seal it. It used to be copied in as
+# SwiftPM's own resource bundle, which Bundle.module cannot find inside an
+# .app: the installed app then fell back to reading the spritesheet out of the
+# build directory, so it broke whenever the checkout moved and made macOS ask
+# for access to whatever folder that was.
+cp "$BIN/MikkelPet_MikkelPet.bundle/Resources/"* "$APP/Contents/Resources/"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -37,8 +40,14 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-# Ad-hoc signing keeps macOS from re-prompting on every launch.
-codesign --force --deep --sign - "$APP" >/dev/null 2>&1 || true
+# Sign the executables, then the bundle around them. Not --deep: it is
+# deprecated, and it was failing here on the resource bundle and taking the
+# whole signature with it, silently, because the failure was thrown away. The
+# app then carried only the linker's own signature.
+codesign --force --sign - "$APP/Contents/MacOS/mikkel-hook"
+codesign --force --sign - "$APP/Contents/MacOS/MikkelPet"
+codesign --force --sign - --identifier dev.andreas.mikkel-pet "$APP"
+codesign --verify --strict "$APP"
 
 echo "Built $APP"
 echo "Install the hooks with:"

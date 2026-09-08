@@ -78,8 +78,15 @@ public enum Phrasebook {
 
     public static func greeting() -> String { "Hi there" }
 
+    /// The end-of-turn lines. Shared with `subagentDone` on purpose: what the
+    /// user wants to know is that the work stopped, not which of Claude's parts
+    /// stopped doing it. Naming the machinery ("my helper") reads like a log
+    /// line and invites the question "what helper?", which is never useful.
+    static let doneLines = ["All done", "That's done", "Finished",
+                            "All wrapped up", "Done here", "That's that"]
+
     public static func finished() -> String {
-        pick(["All done", "That's done", "Finished"], seed: "\(Int(Date().timeIntervalSince1970) / 60)")
+        pick(doneLines, seed: minuteSeed())
     }
 
     public static func prompt(_ text: String?) -> String {
@@ -105,15 +112,19 @@ public enum Phrasebook {
     }
 
     public static func toolFailed() -> String {
-        pick(["Hm, that didn't work", "That didn't go through", "That one failed"],
-             seed: "\(Int(Date().timeIntervalSince1970) / 60)")
+        pick(["Hm, that didn't work", "That didn't go through", "That one failed",
+              "That one didn't take"], seed: minuteSeed())
     }
 
     public static func toolsFailed(count: Int) -> String {
         count == 1 ? toolFailed() : "\(count) of those failed"
     }
 
-    public static func subagentDone() -> String { "My helper's finished" }
+    /// Offset by a minute so a subagent finishing and the turn ending moments
+    /// later do not print the identical string twice in a row.
+    public static func subagentDone() -> String {
+        pick(doneLines, seed: minuteSeed(offset: 1))
+    }
 
     // MARK: - Helpers
 
@@ -126,6 +137,13 @@ public enum Phrasebook {
         let firstWord = s.prefix { !$0.isWhitespace }
         if firstWord.dropFirst().contains(where: \.isUppercase) { return s }
         return first.lowercased() + s.dropFirst()
+    }
+
+    /// A seed that holds steady for a minute at a time. Lines with no natural
+    /// subject still need to vary between occurrences, but must not reword
+    /// themselves while the same bubble is on screen.
+    static func minuteSeed(offset: Int = 0) -> String {
+        "\(Int(Date().timeIntervalSince1970) / 60 + offset)"
     }
 
     /// Stable across launches and across repeats of the same subject, so the

@@ -18,6 +18,38 @@ if let command = arguments.first {
             FileHandle.standardError.write(Data((error.localizedDescription + "\n").utf8))
             exit(1)
         }
+    case "--snapshot":
+        // --snapshot <path> [label] [session] [state]
+        guard arguments.count >= 2 else {
+            FileHandle.standardError.write(Data("--snapshot needs a path\n".utf8))
+            exit(1)
+        }
+        do {
+            try Snapshot.write(
+                to: arguments[1],
+                label: arguments.count > 2 ? arguments[2] : "Reading PetView.swift",
+                session: arguments.count > 3 ? arguments[3] : "claude-pet",
+                state: arguments.count > 4
+                    ? (PetState(rawValue: arguments[4]) ?? .running) : .running)
+            exit(0)
+        } catch {
+            FileHandle.standardError.write(Data((error.localizedDescription + "\n").utf8))
+            exit(1)
+        }
+    case "--film":
+        // --film <directory> [session|failure] : frames of a scripted run
+        guard arguments.count >= 2 else {
+            FileHandle.standardError.write(Data("--film needs a directory\n".utf8))
+            exit(1)
+        }
+        do {
+            try Snapshot.film(into: arguments[1],
+                              script: arguments.count > 2 ? arguments[2] : "session")
+            exit(0)
+        } catch {
+            FileHandle.standardError.write(Data((error.localizedDescription + "\n").utf8))
+            exit(1)
+        }
     case "--help", "-h":
         print("""
         mikkel-pet - a Claude Code desktop pet
@@ -25,6 +57,7 @@ if let command = arguments.first {
           mikkel-pet                    run the pet
           mikkel-pet --install-hooks    add the pet's hooks to ~/.claude/settings.json
           mikkel-pet --uninstall-hooks  remove them again
+          mikkel-pet --snapshot <png>    render one frame to a file (development aid)
         """)
         exit(0)
     default:
@@ -51,6 +84,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PetViewDelegate {
     private let backgroundKey = "FollowBackgroundSessions"
     private let speedKey = "PetSpeed"
     private let sleepKey = "PetSleepAfter"
+    private let hoverKey = "PetJumpsOnHover"
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // No Dock icon, no main menu: the pet lives in the menu bar.
@@ -67,12 +101,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PetViewDelegate {
         buildStatusItem()
 
         tracker.followsBackgroundSessions = UserDefaults.standard.bool(forKey: backgroundKey)
-        tracker.onChange = { [weak self] resting, oneShot, label in
+        tracker.onChange = { [weak self] resting, oneShot, label, session in
             if ProcessInfo.processInfo.environment["MIKKEL_PET_DEBUG"] == "1" {
                 FileHandle.standardError.write(Data(
-                    "state \(resting.rawValue) oneShot=\(oneShot?.rawValue ?? "-") label=\(label)\n".utf8))
+                    "state \(resting.rawValue) oneShot=\(oneShot?.rawValue ?? "-") session=\(session) label=\(label)\n".utf8))
             }
-            self?.petView.apply(resting: resting, oneShot: oneShot, label: label)
+            self?.petView.apply(resting: resting, oneShot: oneShot, label: label, session: session)
             self?.refreshStatusTitle()
         }
         // MIKKEL_PET_DEBUG=1 traces the hook stream while wiring things up.
@@ -104,7 +138,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PetViewDelegate {
             self?.tracker.refresh()
         }
 
-        petView.apply(resting: .idle, oneShot: .waving, label: "")
+        petView.apply(resting: .idle, oneShot: .waving, label: "", session: "")
     }
 
     // MARK: - Window
@@ -115,6 +149,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PetViewDelegate {
         view.scale = CGFloat(scale)
         view.speed = UserDefaults.standard.object(forKey: speedKey) as? Double ?? 1.7
         view.sleepAfter = UserDefaults.standard.object(forKey: sleepKey) as? Double ?? 240
+        view.jumpsOnHover = UserDefaults.standard.object(forKey: hoverKey) as? Bool ?? true
         view.delegate = self
         petView = view
 
@@ -214,6 +249,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PetViewDelegate {
         tracking.target = self
         tracking.state = petView.pointerTrackingEnabled ? .on : .off
         menu.addItem(tracking)
+
+        let hover = NSMenuItem(
+            title: "Hop when you hover", action: #selector(toggleHover), keyEquivalent: "")
+        hover.target = self
+        hover.state = petView.jumpsOnHover ? .on : .off
+        hover.toolTip = "He keeps jumping for as long as the pointer is over him."
+        menu.addItem(hover)
 
         let background = NSMenuItem(
             title: "Follow background sessions", action: #selector(toggleBackground), keyEquivalent: "")
@@ -316,6 +358,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PetViewDelegate {
         rebuildMenu()
     }
 
+    @objc private func toggleHover() {
+        petView.jumpsOnHover.toggle()
+        UserDefaults.standard.set(petView.jumpsOnHover, forKey: hoverKey)
+        rebuildMenu()
+    }
+
     @objc private func setScale(_ sender: NSMenuItem) {
         guard let value = sender.representedObject as? Double else { return }
         petView.scale = CGFloat(value)
@@ -355,7 +403,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PetViewDelegate {
 
     func petViewWasClicked(_ view: PetView) {
         petView.wake()
-        petView.apply(resting: .idle, oneShot: .waving, label: atlas.manifest.description)
+        // His own introduction, not a session's, so the bubble gets no header.
+        petView.apply(resting: .idle, oneShot: .waving,
+                      label: atlas.manifest.description, session: "")
         savePosition()
     }
 
