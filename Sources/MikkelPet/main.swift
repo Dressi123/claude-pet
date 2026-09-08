@@ -247,6 +247,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PetViewDelegate {
         speeds.submenu = speedMenu
         menu.addItem(speeds)
 
+        let sleeps = NSMenuItem(title: "Sleep when idle", action: nil, keyEquivalent: "")
+        let sleepMenu = NSMenu()
+        for (label, value) in [("After 2 minutes", 120.0), ("After 4 minutes", 240.0),
+                               ("After 10 minutes", 600.0), ("Never", 0.0)] {
+            let item = NSMenuItem(title: label, action: #selector(setSleepAfter(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = value
+            item.state = abs(petView.sleepAfter - value) < 0.5 ? .on : .off
+            sleepMenu.addItem(item)
+        }
+        sleeps.submenu = sleepMenu
+        menu.addItem(sleeps)
+
         menu.addItem(.separator())
 
         let hooks = NSMenuItem(
@@ -273,6 +286,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PetViewDelegate {
     /// Pins the pet to one session, or back to all when the item carries no id.
     @objc private func pinSession(_ sender: NSMenuItem) {
         tracker.pinnedSessionID = sender.representedObject as? String
+        rebuildMenu()
+    }
+
+    @objc private func setSleepAfter(_ sender: NSMenuItem) {
+        guard let value = sender.representedObject as? Double else { return }
+        petView.sleepAfter = value
+        // Changing the setting should not leave him asleep under the old one.
+        petView.wake()
+        UserDefaults.standard.set(value, forKey: sleepKey)
         rebuildMenu()
     }
 
