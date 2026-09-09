@@ -40,13 +40,28 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
+# Prefer a real signing identity over an ad-hoc one. An ad-hoc signature has no
+# certificate behind it, so the app's identity is a hash of its own contents:
+# change a byte, rebuild, and macOS sees an app it has never met and asks for
+# every permission again. A certificate keeps the identity stable across builds.
+# Falls back to ad-hoc so the script still works on a machine with no identity.
+# Override with SIGN_ID, or SIGN_ID=- to force ad-hoc.
+IDENTITY="${SIGN_ID:-$(security find-identity -v -p codesigning 2>/dev/null |
+  awk '/Developer ID Application|Apple Development/ { print $2; exit }')}"
+IDENTITY="${IDENTITY:--}"
+if [ "$IDENTITY" = "-" ]; then
+  echo "Signing ad-hoc: no code signing identity found."
+else
+  echo "Signing with identity $IDENTITY"
+fi
+
 # Sign the executables, then the bundle around them. Not --deep: it is
 # deprecated, and it was failing here on the resource bundle and taking the
 # whole signature with it, silently, because the failure was thrown away. The
 # app then carried only the linker's own signature.
-codesign --force --sign - "$APP/Contents/MacOS/mikkel-hook"
-codesign --force --sign - "$APP/Contents/MacOS/MikkelPet"
-codesign --force --sign - --identifier dev.andreas.mikkel-pet "$APP"
+codesign --force --sign "$IDENTITY" "$APP/Contents/MacOS/mikkel-hook"
+codesign --force --sign "$IDENTITY" "$APP/Contents/MacOS/MikkelPet"
+codesign --force --sign "$IDENTITY" --identifier dev.andreas.mikkel-pet "$APP"
 codesign --verify --strict "$APP"
 
 echo "Built $APP"
