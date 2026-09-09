@@ -149,16 +149,18 @@ through now, and he blinks because the artwork always could.
 
 He blinks while watching the pointer too. A look direction is a single still
 cell held for as long as you keep the mouse still, so without this he would
-blink only in the moments he was not watching you. Row 12 carries closed-eye
-twins of the look cells, and the blink is a 130ms swap to the matching index.
+blink only in the moments he was not watching you. Rows 12 and 13 carry
+closed-eye twins of all sixteen look cells, and the blink is a 130ms swap to the
+matching index.
 The cadence is taken from the idle row rather than invented, so both ways of
 resting blink at the same rate, and it is jittered by a quarter either way
 because a blink on a fixed interval reads as a metronome.
 
-Only directions 0-7 have art so far, so he blinks looking up and right but not
-left. A direction without a twin simply does not blink. The two halves were
-always meant to be shippable separately, which is why `lookBlinkCell` splits the
-same way `lookCell` does.
+The two halves arrived weeks apart in practice, so a direction without a twin
+simply does not blink rather than holding the feature back. That is why
+`lookBlinkCell` splits the same way `lookCell` does, and why turning to a
+direction with no twin part-way through a blink opens his eyes instead of
+leaving nothing on screen.
 
 The sad reaction used to be one of them, and it was wrong. Its eight cells are
 eight ways of looking glum rather than eight steps of a movement, so running
@@ -296,11 +298,11 @@ Everything else is byte-identical to the current generated atlas.
 
 ## The spritesheet
 
-1536x2704: 8 columns by 13 rows of 192x208 cells. Rows 0-8 are animation states
+1536x2912: 8 columns by 14 rows of 192x208 cells. Rows 0-8 are animation states
 with uneven per-frame durations. Rows 9 and 10 are the 16 clockwise look
-directions, where `000` is up, not front. Row 11 is sleep. Row 12 is the
-closed-eye twins of look directions 0-7, with 13 reserved for 8-15. Front-facing
-neutral is row 0, column 6, which is also the menu bar icon.
+directions, where `000` is up, not front. Row 11 is sleep. Rows 12 and 13 are the
+closed-eye twins of the look directions, split the same way rows 9 and 10 are.
+Front-facing neutral is row 0, column 6, which is also the menu bar icon.
 
 The app counts rows rather than matching a fixed height. Eleven is the floor,
 since that covers every state and look direction; everything above it is

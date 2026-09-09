@@ -83,7 +83,15 @@ def main():
                                    else "  (redrawn: a new canvas, so expect drift)"))
 
     gen = raw(generated, os.path.join(out_dir, "generated.raw"))
-    runs = characters(gen, gw, gh)
+
+    # An in-place edit is already on the grid. Rescaling it anyway resamples a
+    # correct file and invents a difference that is not there: the first row
+    # that actually passed was failed by this script for that reason.
+    if edited_in_place:
+        normalized, norm = generated, gen
+        runs = [(i * CELL_W, (i + 1) * CELL_W) for i in range(COLUMNS)]
+    else:
+        runs = characters(gen, gw, gh)
     if len(runs) != COLUMNS:
         print(f"found {len(runs)} characters, expected {COLUMNS}: cannot line them up")
         return 1
@@ -92,7 +100,7 @@ def main():
     # it on the source's baseline and centre. Anything more than this is fitting
     # the result to the answer.
     cells = []
-    for i in range(COLUMNS):
+    for i in range(COLUMNS) if not edited_in_place else []:
         s = bbox(src, ROW_W, CELL_H, i * CELL_W, (i + 1) * CELL_W)
         sw, sh = s[2] - s[0] + 1, s[3] - s[1] + 1
         g = bbox(gen, gw, gh, runs[i][0], runs[i][1])
@@ -107,14 +115,15 @@ def main():
             f"[bg][c]overlay={x_off}:{s[1]}", "-frames:v", "1", cell], check=True)
         cells.append(cell)
 
-    normalized = os.path.join(out_dir, "normalized.png")
-    args = ["ffmpeg", "-y", "-loglevel", "error"]
-    for c in cells:
-        args += ["-i", c]
-    args += ["-filter_complex", "".join(f"[{i}:v]" for i in range(COLUMNS)) +
-             f"hstack=inputs={COLUMNS}", "-frames:v", "1", normalized]
-    subprocess.run(args, check=True)
-    norm = raw(normalized, os.path.join(out_dir, "normalized.raw"))
+    if not edited_in_place:
+        normalized = os.path.join(out_dir, "normalized.png")
+        args = ["ffmpeg", "-y", "-loglevel", "error"]
+        for c in cells:
+            args += ["-i", c]
+        args += ["-filter_complex", "".join(f"[{i}:v]" for i in range(COLUMNS)) +
+                 f"hstack=inputs={COLUMNS}", "-frames:v", "1", normalized]
+        subprocess.run(args, check=True)
+        norm = raw(normalized, os.path.join(out_dir, "normalized.raw"))
 
     print(f"\n{'cell':>4} {'silhouette moved':>17} {'colour changed':>15}")
     print("-" * 40)
