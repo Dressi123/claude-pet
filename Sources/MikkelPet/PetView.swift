@@ -114,6 +114,11 @@ final class PetView: NSView {
     /// a lively pet; a companion that animates all day reads better slower.
     var speed: Double = 1.7
     private var lookIndex: Int?
+    /// Whether the cell currently on screen is the blinking twin, so the sprite
+    /// is only reassigned when one of the two actually changes.
+    private var lookIsBlinking = false
+    private var lookBlinkEndsAt: CFTimeInterval = 0
+    private var nextLookBlinkAt: CFTimeInterval = 0
 
     private var dragOrigin: NSPoint?
     private var dragState: PetState?
@@ -702,13 +707,19 @@ final class PetView: NSView {
         // of playing the idle loop.
         if oneShotState == nil, restingState == .idle, pointerTrackingEnabled,
            let index = pointerLookIndex() {
-            if lookIndex != index {
+            let blinking = updateLookBlink(index: index)
+            if lookIndex != index || lookIsBlinking != blinking {
                 lookIndex = index
-                spriteLayer.contents = atlas.lookCell(index: index)
-                debugTrace("look index=\(index)")
+                lookIsBlinking = blinking
+                // Falls back to the open-eyed cell rather than assigning nil,
+                // which would leave nothing on screen at all.
+                spriteLayer.contents = (blinking ? atlas.lookBlinkCell(index: index) : nil)
+                    ?? atlas.lookCell(index: index)
+                debugTrace("look index=\(index) blink=\(blinking)", dedupe: false)
             }
             return
         }
+        lookIsBlinking = false
         debugTrace("noLook oneShot=\(oneShotState?.rawValue ?? "-") resting=\(restingState.rawValue) track=\(pointerTrackingEnabled) idx=\(pointerLookIndex().map(String.init) ?? "nil")")
         if lookIndex != nil {
             lookIndex = nil
@@ -894,6 +905,39 @@ final class PetView: NSView {
     private func petScreenRect() -> CGRect? {
         guard let window, window.screen != nil else { return nil }
         return window.convertToScreen(convert(petFrame, to: nil))
+    }
+
+    /// Watching the pointer is a single still cell held for as long as you keep
+    /// the mouse still, which is where he spends most of his idle life. Without
+    /// this he would blink only in the brief moments he is not watching you.
+    ///
+    /// The cadence is taken from the idle row rather than invented, so the two
+    /// ways he can be resting blink at the same rate, and changing the idle
+    /// timing changes this with it. It is jittered because a blink on a fixed
+    /// interval reads as a metronome.
+    private static let lookBlinkDuration: CFTimeInterval = 0.13
+
+    private func updateLookBlink(index: Int) -> Bool {
+        let now = CACurrentMediaTime()
+        // Turning to a direction with no blink art part-way through one just
+        // opens his eyes again, rather than holding a blink that cannot be
+        // drawn. Half a set of art has to degrade somewhere.
+        if now < lookBlinkEndsAt { return atlas.lookBlinkCell(index: index) != nil }
+
+        if nextLookBlinkAt == 0 || now >= nextLookBlinkAt {
+            let base = Double(PetState.idle.blinkIntervalMilliseconds) / 1000 * speed
+            let scheduled = base * Double.random(in: 0.75...1.25)
+            // A direction with no blink cell still gets a new appointment, so
+            // he does not blink the instant the pointer crosses into one that
+            // has art.
+            if nextLookBlinkAt != 0, atlas.lookBlinkCell(index: index) != nil {
+                lookBlinkEndsAt = now + Self.lookBlinkDuration
+                nextLookBlinkAt = now + Self.lookBlinkDuration + scheduled
+                return true
+            }
+            nextLookBlinkAt = now + scheduled
+        }
+        return false
     }
 
     /// Maps the pointer to one of the 16 look cells. `000` is up / 12 o'clock

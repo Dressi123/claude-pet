@@ -85,6 +85,24 @@ final class AtlasGeometryTests: XCTestCase {
         }
     }
 
+    /// The blink twins must line up index-for-index with the look cells, or he
+    /// blinks facing a different way than he was looking.
+    func testLookBlinkCellsMirrorTheLookDirections() {
+        for index in 0..<AtlasGeometry.lookDirectionCount {
+            let look = AtlasGeometry.lookCell(index: index)
+            let blink = AtlasGeometry.lookBlinkCell(index: index)
+            XCTAssertEqual(blink.column, look.column, "direction \(index) changed column")
+            XCTAssertEqual(blink.row - look.row, AtlasGeometry.firstLookBlinkRow - 9,
+                           "direction \(index) is not the same offset from its look row")
+        }
+        // The halves are meant to be shippable separately, so the first eight
+        // must all live in the first blink row.
+        for index in 0..<8 {
+            XCTAssertEqual(AtlasGeometry.lookBlinkCell(index: index).row,
+                           AtlasGeometry.firstLookBlinkRow)
+        }
+    }
+
     func testLookDirectionsSplitAcrossRowsNineAndTen() {
         XCTAssertEqual(AtlasGeometry.lookCell(index: 0).row, 9)
         XCTAssertEqual(AtlasGeometry.lookCell(index: 0).column, 0)

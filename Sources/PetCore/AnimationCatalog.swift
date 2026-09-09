@@ -53,6 +53,14 @@ public enum PetState: String, CaseIterable {
 
     public var frameCount: Int { durations.count }
 
+    /// How long this state's open-eyed holds last in total, which for the idle
+    /// row is the gap between one blink and the next. Anything else that needs
+    /// to blink at his natural rate takes it from here rather than inventing a
+    /// number that then drifts away from this one.
+    public var blinkIntervalMilliseconds: Int {
+        durations.filter { $0 >= Self.holdFrameMilliseconds }.reduce(0, +)
+    }
+
     /// A frame at least this long is him holding still rather than a step of a
     /// movement. Pace stretches the holds and leaves the movement alone, so a
     /// calmer pace means he blinks less often rather than blinking in slow
@@ -150,6 +158,19 @@ public enum AtlasGeometry {
     public static func lookCell(index: Int) -> (row: Int, column: Int) {
         let i = ((index % lookDirectionCount) + lookDirectionCount) % lookDirectionCount
         return i < columns ? (9, i) : (10, i - columns)
+    }
+
+    /// Closed-eye twins of the look directions, so he can blink while watching
+    /// the pointer. Split the same way `lookCell` is, which lets the two halves
+    /// arrive separately: a sheet carrying only the first can still blink
+    /// through 0-157.5 degrees rather than holding the feature back entirely.
+    public static let firstLookBlinkRow = 12
+
+    public static func lookBlinkCell(index: Int) -> (row: Int, column: Int) {
+        let i = ((index % lookDirectionCount) + lookDirectionCount) % lookDirectionCount
+        return i < columns
+            ? (firstLookBlinkRow, i)
+            : (firstLookBlinkRow + 1, i - columns)
     }
 }
 

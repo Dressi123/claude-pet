@@ -147,10 +147,18 @@ long hold either side of three short frames. Holding one cell of it threw the
 blink away, and could park him with his eyes shut for three seconds. It plays
 through now, and he blinks because the artwork always could.
 
-One limit worth knowing: while idle he watches the pointer, and a look direction
-is a single still cell. So the blink only shows when the pointer is near him or
-pointer watching is off. Blinking while he watches you would need closed-eye art
-for the sixteen look cells.
+He blinks while watching the pointer too. A look direction is a single still
+cell held for as long as you keep the mouse still, so without this he would
+blink only in the moments he was not watching you. Row 12 carries closed-eye
+twins of the look cells, and the blink is a 130ms swap to the matching index.
+The cadence is taken from the idle row rather than invented, so both ways of
+resting blink at the same rate, and it is jittered by a quarter either way
+because a blink on a fixed interval reads as a metronome.
+
+Only directions 0-7 have art so far, so he blinks looking up and right but not
+left. A direction without a twin simply does not blink. The two halves were
+always meant to be shippable separately, which is why `lookBlinkCell` splits the
+same way `lookCell` does.
 
 The sad reaction used to be one of them, and it was wrong. Its eight cells are
 eight ways of looking glum rather than eight steps of a movement, so running
@@ -288,14 +296,16 @@ Everything else is byte-identical to the current generated atlas.
 
 ## The spritesheet
 
-1536x2496: 8 columns by 12 rows of 192x208 cells. Rows 0-8 are animation states
+1536x2704: 8 columns by 13 rows of 192x208 cells. Rows 0-8 are animation states
 with uneven per-frame durations. Rows 9 and 10 are the 16 clockwise look
-directions, where `000` is up, not front. Row 11 is sleep. Front-facing neutral
-is row 0, column 6, which is also the menu bar icon.
+directions, where `000` is up, not front. Row 11 is sleep. Row 12 is the
+closed-eye twins of look directions 0-7, with 13 reserved for 8-15. Front-facing
+neutral is row 0, column 6, which is also the menu bar icon.
 
-The app checks the manifest's `spriteVersionNumber` and the cell geometry at
-load, and treats a sheet that stops at eleven rows as valid without a sleep
-animation.
+The app counts rows rather than matching a fixed height. Eleven is the floor,
+since that covers every state and look direction; everything above it is
+optional and each row degrades on its own. So adding a row is an edit to
+`AtlasGeometry` and nothing else.
 
 Swapping in another hatched pet is a matter of replacing the two files in
 `Sources/MikkelPet/Resources`.

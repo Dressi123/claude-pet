@@ -102,6 +102,9 @@ enum Snapshot {
         let script: [(TimeInterval, PetState, PetState?, String, String)]
         let total: TimeInterval
         switch name {
+        // Resting with pointer watching left on, which is the only way to see
+        // him blink at the cursor: a state demo turns tracking off.
+        case "look": script = [(0.0, .idle, nil, "", "")]; total = 12.0
         case "hover": script = hover; total = 7.0
         case "failure": script = failure; total = 14.0
         case "session": script = session; total = 13.0

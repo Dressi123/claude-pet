@@ -18,6 +18,9 @@ final class Atlas {
     private var cellCache: [Int: CGImage] = [:]
     /// True when the atlas carries the extra sleep row past the contract's 11.
     let hasSleepRow: Bool
+    /// How many rows this sheet actually carries. Rows past the eleventh are
+    /// this app's own additions and each is optional.
+    let rowCount: Int
 
     var cellSize: CGSize {
         CGSize(width: AtlasGeometry.cellWidth, height: AtlasGeometry.cellHeight)
@@ -63,17 +66,19 @@ final class Atlas {
             throw AtlasError.missingResource(manifest.spritesheetPath)
         }
 
-        // The contract fixes eleven rows. One extra row is allowed for sleeping,
-        // which the contract has no state for; anything else is a bad atlas.
+        // Eleven rows is the floor, since that is what every state and look
+        // direction needs. Anything above it is this app's own: sleep, then the
+        // look blinks. Rows are counted rather than matched against a fixed
+        // height, so adding one is an edit to `AtlasGeometry` and nothing else.
         let expectedWidth = AtlasGeometry.columns * AtlasGeometry.cellWidth
-        let contractHeight = AtlasGeometry.contractRows * AtlasGeometry.cellHeight
-        let withSleepHeight = contractHeight + AtlasGeometry.cellHeight
         guard image.width == expectedWidth,
-              image.height == contractHeight || image.height == withSleepHeight
+              image.height % AtlasGeometry.cellHeight == 0,
+              image.height / AtlasGeometry.cellHeight >= AtlasGeometry.contractRows
         else {
             throw AtlasError.wrongDimensions(width: image.width, height: image.height)
         }
-        hasSleepRow = image.height == withSleepHeight
+        rowCount = image.height / AtlasGeometry.cellHeight
+        hasSleepRow = rowCount > SleepRow.row
         sheet = image
     }
 
@@ -102,6 +107,15 @@ final class Atlas {
         return self.cell(row: cell.row, column: cell.column)
     }
 
+    /// The closed-eye twin of a look direction, or nil when this sheet has no
+    /// row for it. Nil means that direction simply does not blink, which is why
+    /// half a set is still worth shipping.
+    func lookBlinkCell(index: Int) -> CGImage? {
+        let cell = AtlasGeometry.lookBlinkCell(index: index)
+        guard cell.row < rowCount else { return nil }
+        return self.cell(row: cell.row, column: cell.column)
+    }
+
     /// A frame of the sleep row, or the still fallback when the atlas has none.
     func sleepCell(column: Int) -> CGImage? {
         guard hasSleepRow else {
@@ -127,7 +141,7 @@ final class Atlas {
             case .unsupportedVersion(let version):
                 return "Pet declares spriteVersionNumber \(version); this app needs 2."
             case .wrongDimensions(let width, let height):
-                return "Spritesheet is \(width)x\(height); expected 1536x2288, or 1536x2496 with a sleep row."
+                return "Spritesheet is \(width)x\(height); expected \(AtlasGeometry.columns * AtlasGeometry.cellWidth) wide and a whole number of \(AtlasGeometry.cellHeight)px rows, at least \(AtlasGeometry.contractRows)."
             }
         }
     }
