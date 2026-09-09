@@ -121,8 +121,8 @@ quick through the air and slower at either end, which gives the leap some snap.
 
 ## Two playback modes
 
-The states he sits in while Claude works, idle, working, inspecting and asking,
-do not run as flipbooks. Nor does the sad reaction to a failure. Flipping six poses a second reads as frantic when it
+The states he sits in while Claude works, working, inspecting and asking, do not
+run as flipbooks. Nor does the sad reaction to a failure. Flipping six poses a second reads as frantic when it
 lasts for minutes. Instead he holds one pose for a few seconds, then cuts to
 another at random, never repeating the pose he is already in.
 
@@ -134,6 +134,18 @@ seconds at the default Pace: twelve changes, from 1.0 to 4.5 seconds, averaging
 Locomotion and the motion one-shots, waving and jumping, still run as real
 animations. Those are over in half a second and there the movement is the whole
 point.
+
+Idle is the exception, and it took a while to notice. Its six cells are not six
+poses: they are one seated pose drawn six times, and cell 2 has the eyes closed.
+The row is an idle loop with a blink built into it, and the durations say so, a
+long hold either side of three short frames. Holding one cell of it threw the
+blink away, and could park him with his eyes shut for three seconds. It plays
+through now, and he blinks because the artwork always could.
+
+One limit worth knowing: while idle he watches the pointer, and a look direction
+is a single still cell. So the blink only shows when the pointer is near him or
+pointer watching is off. Blinking while he watches you would need closed-eye art
+for the sixteen look cells.
 
 The sad reaction used to be one of them, and it was wrong. Its eight cells are
 eight ways of looking glum rather than eight steps of a movement, so running

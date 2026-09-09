@@ -35,11 +35,32 @@ final class AtlasGeometryTests: XCTestCase {
     /// reaction is brief and still held, because its eight cells are eight ways
     /// of looking glum rather than eight steps of a motion.
     func testPlaybackModeMatchesWhetherTheCellsAreAMotion() {
-        for state in [PetState.idle, .running, .review, .waiting, .failed] {
+        for state in [PetState.running, .review, .waiting, .failed] {
             XCTAssertEqual(state.playback, .pose, "\(state) should hold a pose")
         }
         for state in [PetState.runningRight, .runningLeft, .waving, .jumping] {
             XCTAssertEqual(state.playback, .sequence, "\(state) should animate")
+        }
+        // Idle's cells are one pose drawn six times with a blink in the middle,
+        // so it is a loop, not a set of poses to pick from.
+        XCTAssertEqual(PetState.idle.playback, .sequence,
+                       "idle is an authored loop and must play through")
+    }
+
+    /// The idle loop is a blink between two holds, and Pace is applied per
+    /// frame, so the split has to survive anyone editing the durations: the
+    /// holds must stay above the threshold and the blink below it.
+    func testTheIdleBlinkIsNotStretchedByPace() {
+        let durations = PetState.idle.durations
+        let holds = durations.filter { $0 >= PetState.holdFrameMilliseconds }
+        let blink = durations.filter { $0 < PetState.holdFrameMilliseconds }
+        XCTAssertEqual(holds.count, 2, "the loop is two open-eyed holds")
+        XCTAssertEqual(blink.count, 4, "with the blink between them")
+        // A movement must never be caught by the hold rule, or Pace would put
+        // it back into slow motion.
+        for state in [PetState.jumping, .waving, .runningRight, .runningLeft] {
+            XCTAssertTrue(state.durations.allSatisfy { $0 < PetState.holdFrameMilliseconds },
+                          "\(state) is a movement and must play at its own speed")
         }
     }
 

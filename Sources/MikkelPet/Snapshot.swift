@@ -95,6 +95,9 @@ enum Snapshot {
         let hover: [(TimeInterval, PetState, PetState?, String, String)] =
             [(0.0, .idle, nil, "", "")]
         if name == "hover" { view.simulatesHover = true }
+        // A state demo has to show the state. While idle he otherwise watches
+        // the pointer, and a look cell would stand in for the idle loop.
+        if PetState(rawValue: name) != nil { view.pointerTrackingEnabled = false }
 
         let script: [(TimeInterval, PetState, PetState?, String, String)]
         let total: TimeInterval

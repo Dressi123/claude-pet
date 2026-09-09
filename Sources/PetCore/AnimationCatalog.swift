@@ -32,7 +32,12 @@ public enum PetState: String, CaseIterable {
     /// Milliseconds per frame. Length also defines how many columns are used.
     public var durations: [Int] {
         switch self {
-        case .idle: return [280, 110, 110, 140, 140, 320]
+        // Frames 1-4 are the blink and keep the atlas's own timing: a blink
+        // slowed down stops being a blink and starts being drowsiness. The two
+        // long frames either side of it are open-eyed holds, and they are much
+        // longer than the contract's 280 and 320 because at those he blinked
+        // about once a second, which reads as nervous.
+        case .idle: return [800, 110, 110, 140, 140, 1000]
         case .runningRight, .runningLeft: return [120, 120, 120, 120, 120, 120, 120, 220]
         case .waving: return [140, 140, 140, 280]
         // A fuller eight-frame arc than the contract's five: settle, crouch,
@@ -48,6 +53,12 @@ public enum PetState: String, CaseIterable {
 
     public var frameCount: Int { durations.count }
 
+    /// A frame at least this long is him holding still rather than a step of a
+    /// movement. Pace stretches the holds and leaves the movement alone, so a
+    /// calmer pace means he blinks less often rather than blinking in slow
+    /// motion, and a jump stays a jump at every setting.
+    public static let holdFrameMilliseconds = 400
+
     /// How a row is played back.
     public enum Playback: Equatable {
         /// Flipbook: run the atlas's frame durations in order.
@@ -56,20 +67,28 @@ public enum PetState: String, CaseIterable {
         case pose
     }
 
-    /// The status states are on screen for minutes at a time, so flipping their
-    /// frames reads as frantic rather than busy. They hold a pose instead.
-    /// Locomotion stays a flipbook, and so do the one-shots that are motions in
+    /// Working, inspecting and asking are on screen for minutes at a time and
+    /// their cells really are six different poses, so flipping through them
+    /// reads as frantic rather than busy. They hold a pose instead. So does a
+    /// failure: its eight cells are eight ways of looking glum, and running
+    /// them in order cycled the lot in about a second, which read as panic.
+    ///
+    /// Idle is the exception among the status rows, and it is worth saying why
+    /// out loud, because it looks like an inconsistency. Its six cells are not
+    /// six poses. They are one seated pose drawn six times, and cell 2 has the
+    /// eyes closed: the row is an idle loop with a blink built into it, and the
+    /// durations say so, a long hold either side of three short frames. Holding
+    /// one cell of it threw the blink away and, worse, could park him with his
+    /// eyes shut for three seconds. Played in order it does exactly what the
+    /// art was drawn to do.
+    ///
+    /// Locomotion is a flipbook, and so are the one-shots that are movements in
     /// their own right: a wave and a jump are over in half a second and the
     /// movement *is* the content.
-    ///
-    /// A failure is not a motion. Its eight cells are eight ways of looking
-    /// glum, and running them as a flipbook made him cycle through all of them
-    /// in about a second, which read as panic rather than disappointment. He
-    /// holds them instead, the same way he does while working.
     public var playback: Playback {
         switch self {
-        case .idle, .running, .review, .waiting, .failed: return .pose
-        case .runningRight, .runningLeft, .waving, .jumping: return .sequence
+        case .running, .review, .waiting, .failed: return .pose
+        case .idle, .runningRight, .runningLeft, .waving, .jumping: return .sequence
         }
     }
 

@@ -738,8 +738,13 @@ final class PetView: NSView {
         let elapsed = (CACurrentMediaTime() - frameStartedAt) * 1000
         // Pace governs how long he sits still, not how fast a movement plays.
         // Stretching a jump by 1.7 does not make it calmer, it makes it slow
-        // motion, and the arc stops reading as a jump at all.
-        let duration = Double(state.durations[min(currentFrame, state.frameCount - 1)])
+        // motion, and the arc stops reading as a jump at all. Within a single
+        // row that line runs per frame: the idle loop's long open-eyed holds
+        // stretch with Pace, the blink in the middle of them does not.
+        let authored = state.durations[min(currentFrame, state.frameCount - 1)]
+        let duration = authored >= PetState.holdFrameMilliseconds
+            ? Double(authored) * speed
+            : Double(authored)
         if elapsed >= duration {
             frameStartedAt = CACurrentMediaTime()
             let next = currentFrame + 1
