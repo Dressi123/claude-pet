@@ -110,6 +110,13 @@ final class Atlas {
     /// The closed-eye twin of a look direction, or nil when this sheet has no
     /// row for it. Nil means that direction simply does not blink, which is why
     /// half a set is still worth shipping.
+    /// The closed-eye twin of a pose, or nil when this sheet has no row for
+    /// that state. Nil means that state does not blink.
+    func blinkCell(state: PetState, frame: Int) -> CGImage? {
+        guard let row = state.blinkRow, row < rowCount else { return nil }
+        return cell(row: row, column: min(frame, state.frameCount - 1))
+    }
+
     func lookBlinkCell(index: Int) -> CGImage? {
         let cell = AtlasGeometry.lookBlinkCell(index: index)
         guard cell.row < rowCount else { return nil }

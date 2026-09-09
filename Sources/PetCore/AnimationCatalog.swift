@@ -53,6 +53,21 @@ public enum PetState: String, CaseIterable {
 
     public var frameCount: Int { durations.count }
 
+    /// The row of closed-eye twins for this state's poses, when the sheet has
+    /// one. Held poses are one still cell for seconds at a time, so without a
+    /// twin he simply stares. Idle is absent on purpose: its blink is drawn
+    /// into the loop itself.
+    ///
+    /// Rows are numbered by when the art arrived rather than by state order,
+    /// because a row is only added once it is filled. An empty reserved row
+    /// would draw nothing at all.
+    public var blinkRow: Int? {
+        switch self {
+        case .running: return 14
+        default: return nil
+        }
+    }
+
     /// How long this state's open-eyed holds last in total, which for the idle
     /// row is the gap between one blink and the next. Anything else that needs
     /// to blink at his natural rate takes it from here rather than inventing a

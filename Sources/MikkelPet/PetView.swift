@@ -117,8 +117,11 @@ final class PetView: NSView {
     /// Whether the cell currently on screen is the blinking twin, so the sprite
     /// is only reassigned when one of the two actually changes.
     private var lookIsBlinking = false
-    private var lookBlinkEndsAt: CFTimeInterval = 0
-    private var nextLookBlinkAt: CFTimeInterval = 0
+    /// One schedule covers both ways he can be resting. They are mutually
+    /// exclusive, and sharing it means crossing between them does not restart
+    /// the clock or fire a blink the instant he turns to look at you.
+    private var blinkEndsAt: CFTimeInterval = 0
+    private var nextBlinkAt: CFTimeInterval = 0
 
     private var dragOrigin: NSPoint?
     private var dragState: PetState?
@@ -707,7 +710,7 @@ final class PetView: NSView {
         // of playing the idle loop.
         if oneShotState == nil, restingState == .idle, pointerTrackingEnabled,
            let index = pointerLookIndex() {
-            let blinking = updateLookBlink(index: index)
+            let blinking = updateBlink(hasArt: atlas.lookBlinkCell(index: index) != nil)
             if lookIndex != index || lookIsBlinking != blinking {
                 lookIndex = index
                 lookIsBlinking = blinking
@@ -872,7 +875,10 @@ final class PetView: NSView {
                 currentFrame = next
             }
         }
-        spriteLayer.contents = atlas.cell(state: state, frame: min(currentFrame, state.frameCount - 1))
+        let frame = min(currentFrame, state.frameCount - 1)
+        let blinking = updateBlink(hasArt: atlas.blinkCell(state: state, frame: frame) != nil)
+        spriteLayer.contents = (blinking ? atlas.blinkCell(state: state, frame: frame) : nil)
+            ?? atlas.cell(state: state, frame: frame)
     }
 
     /// He bounces for as long as the pointer is over him. Each jump is the
@@ -915,27 +921,27 @@ final class PetView: NSView {
     /// ways he can be resting blink at the same rate, and changing the idle
     /// timing changes this with it. It is jittered because a blink on a fixed
     /// interval reads as a metronome.
-    private static let lookBlinkDuration: CFTimeInterval = 0.13
+    private static let blinkDuration: CFTimeInterval = 0.13
 
-    private func updateLookBlink(index: Int) -> Bool {
+    /// Whether he should be showing a closed-eye frame right now. `hasArt` says
+    /// whether the cell he is on has a twin; a pose or direction without one
+    /// simply does not blink, and moving onto one part-way through a blink
+    /// opens his eyes rather than drawing nothing.
+    private func updateBlink(hasArt: @autoclosure () -> Bool) -> Bool {
         let now = CACurrentMediaTime()
-        // Turning to a direction with no blink art part-way through one just
-        // opens his eyes again, rather than holding a blink that cannot be
-        // drawn. Half a set of art has to degrade somewhere.
-        if now < lookBlinkEndsAt { return atlas.lookBlinkCell(index: index) != nil }
+        if now < blinkEndsAt { return hasArt() }
 
-        if nextLookBlinkAt == 0 || now >= nextLookBlinkAt {
+        if nextBlinkAt == 0 || now >= nextBlinkAt {
             let base = Double(PetState.idle.blinkIntervalMilliseconds) / 1000 * speed
             let scheduled = base * Double.random(in: 0.75...1.25)
-            // A direction with no blink cell still gets a new appointment, so
-            // he does not blink the instant the pointer crosses into one that
-            // has art.
-            if nextLookBlinkAt != 0, atlas.lookBlinkCell(index: index) != nil {
-                lookBlinkEndsAt = now + Self.lookBlinkDuration
-                nextLookBlinkAt = now + Self.lookBlinkDuration + scheduled
+            // A cell with no twin still gets a new appointment, so he does not
+            // blink the instant he moves onto one that has art.
+            if nextBlinkAt != 0, hasArt() {
+                blinkEndsAt = now + Self.blinkDuration
+                nextBlinkAt = now + Self.blinkDuration + scheduled
                 return true
             }
-            nextLookBlinkAt = now + scheduled
+            nextBlinkAt = now + scheduled
         }
         return false
     }

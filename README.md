@@ -156,8 +156,17 @@ The cadence is taken from the idle row rather than invented, so both ways of
 resting blink at the same rate, and it is jittered by a quarter either way
 because a blink on a fixed interval reads as a metronome.
 
-The two halves arrived weeks apart in practice, so a direction without a twin
-simply does not blink rather than holding the feature back. That is why
+The working state blinks too, from row 14, and inspecting and asking will when
+their rows arrive. A held pose is one still cell for seconds at a time, so those
+were the states where he most obviously stared. Watching the pointer and holding
+a pose share one blink schedule, because they are mutually exclusive and moving
+between them should not restart the clock or fire a blink the moment he turns to
+look at you.
+
+Rows are numbered by when the art arrived rather than by state, because a row is
+only added once it is filled: an empty reserved row would draw nothing at all. A
+pose or direction without a twin simply does not blink rather than holding the
+feature back. That is why
 `lookBlinkCell` splits the same way `lookCell` does, and why turning to a
 direction with no twin part-way through a blink opens his eyes instead of
 leaving nothing on screen.
@@ -298,10 +307,11 @@ Everything else is byte-identical to the current generated atlas.
 
 ## The spritesheet
 
-1536x2912: 8 columns by 14 rows of 192x208 cells. Rows 0-8 are animation states
+1536x3120: 8 columns by 15 rows of 192x208 cells. Rows 0-8 are animation states
 with uneven per-frame durations. Rows 9 and 10 are the 16 clockwise look
 directions, where `000` is up, not front. Row 11 is sleep. Rows 12 and 13 are the
-closed-eye twins of the look directions, split the same way rows 9 and 10 are.
+closed-eye twins of the look directions, split the same way rows 9 and 10 are,
+and row 14 is the twins of the working poses.
 Front-facing neutral is row 0, column 6, which is also the menu bar icon.
 
 The app counts rows rather than matching a fixed height. Eleven is the floor,

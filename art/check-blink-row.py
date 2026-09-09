@@ -3,27 +3,28 @@
 
 An image tool asked to close the pet's eyes will sometimes edit the file it was
 given and sometimes quietly redraw the character. The second looks fine on its
-own and is useless: cut against the original at speed, the fur and the outline
-move and he changes shape every time he blinks.
+own and is useless: cut against the original at blink speed, the fur and the
+outline move and he changes shape every time he blinks.
 
-This normalises whatever came back onto the 192x208 cell grid and then measures
-what actually changed. Usage:
+Usage:
 
     python3 art/check-blink-row.py <generated.png> <source-row> [out-dir]
 
-where <source-row> is 9 or 10. Needs ffmpeg on PATH.
+`source-row` is the atlas row the art is a twin of: 6, 7 or 8 for the held
+poses, 9 or 10 for the look directions. Needs ffmpeg and ffprobe on PATH.
 """
 import os, subprocess, sys, tempfile
 
-CELL_W, CELL_H, COLUMNS = 192, 208, 8
-ROW_W = CELL_W * COLUMNS
+CELL_W, CELL_H = 192, 208
 SHEET = "Sources/MikkelPet/Resources/spritesheet.png"
+# How many of the eight columns each row actually uses. Mirrors the duration
+# lists in AnimationCatalog; a mismatch here just means a clearer error.
+USED_COLUMNS = {6: 6, 7: 6, 8: 6, 9: 8, 10: 8}
 
 
-def raw(path, out, size=None):
-    cmd = ["ffmpeg", "-y", "-loglevel", "error", "-i", path,
-           "-f", "rawvideo", "-pix_fmt", "rgba", out]
-    subprocess.run(cmd, check=True)
+def raw(path, out):
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", path,
+                    "-f", "rawvideo", "-pix_fmt", "rgba", out], check=True)
     return open(out, "rb").read()
 
 
@@ -47,15 +48,12 @@ def bbox(buf, w, h, x0, x1, thresh=40):
 
 
 def characters(buf, w, h, thresh=40, gap=20):
-    cols = []
+    runs, start = [], None
     for x in range(w):
         hit = any(buf[(y * w + x) * 4 + 3] > thresh for y in range(0, h, 2))
-        cols.append(hit)
-    runs, start = [], None
-    for x, v in enumerate(cols):
-        if v and start is None:
+        if hit and start is None:
             start = x
-        elif not v and start is not None:
+        elif not hit and start is not None:
             if x - start > gap:
                 runs.append((start, x))
             start = None
@@ -72,68 +70,68 @@ def main():
     out_dir = sys.argv[3] if len(sys.argv) > 3 else tempfile.mkdtemp()
     os.makedirs(out_dir, exist_ok=True)
 
+    columns = USED_COLUMNS.get(row)
+    if columns is None:
+        print(f"row {row} is not one of the rows that can have blink twins "
+              f"({', '.join(str(r) for r in sorted(USED_COLUMNS))})")
+        return 2
+    row_w = columns * CELL_W
+
     src_png = os.path.join(out_dir, f"source-row{row}.png")
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", SHEET,
-                    "-vf", f"crop={ROW_W}:{CELL_H}:0:{row * CELL_H}", src_png], check=True)
+                    "-vf", f"crop={row_w}:{CELL_H}:0:{row * CELL_H}", src_png], check=True)
     src = raw(src_png, os.path.join(out_dir, "source.raw"))
 
     gw, gh = dimensions(generated)
-    edited_in_place = (gw, gh) == (ROW_W, CELL_H)
-    print(f"returned {gw}x{gh}" + ("  (edited in place)" if edited_in_place
-                                   else "  (redrawn: a new canvas, so expect drift)"))
+    in_place = (gw, gh) == (row_w, CELL_H)
+    print(f"row {row} wants {row_w}x{CELL_H}; got {gw}x{gh}" +
+          ("  (edited in place)" if in_place else "  (redrawn on a new canvas)"))
 
     gen = raw(generated, os.path.join(out_dir, "generated.raw"))
 
-    # An in-place edit is already on the grid. Rescaling it anyway resamples a
-    # correct file and invents a difference that is not there: the first row
-    # that actually passed was failed by this script for that reason.
-    if edited_in_place:
-        normalized, norm = generated, gen
-        runs = [(i * CELL_W, (i + 1) * CELL_W) for i in range(COLUMNS)]
+    if in_place:
+        # Already on the grid. Rescaling it would resample a correct file and
+        # invent a difference that is not there, which is exactly how this
+        # script once failed a perfect row.
+        compare_to, norm = generated, gen
     else:
         runs = characters(gen, gw, gh)
-    if len(runs) != COLUMNS:
-        print(f"found {len(runs)} characters, expected {COLUMNS}: cannot line them up")
-        return 1
-
-    # Rescale each character so its height matches the source cell's, then plant
-    # it on the source's baseline and centre. Anything more than this is fitting
-    # the result to the answer.
-    cells = []
-    for i in range(COLUMNS) if not edited_in_place else []:
-        s = bbox(src, ROW_W, CELL_H, i * CELL_W, (i + 1) * CELL_W)
-        sw, sh = s[2] - s[0] + 1, s[3] - s[1] + 1
-        g = bbox(gen, gw, gh, runs[i][0], runs[i][1])
-        rw, rh = g[2] - g[0] + 1, g[3] - g[1] + 1
-        tw = max(1, round(rw * (sh / rh)))
-        x_off = round((s[0] + s[2]) / 2 - tw / 2) - i * CELL_W
-        cell = os.path.join(out_dir, f"cell{i}.png")
-        subprocess.run([
-            "ffmpeg", "-y", "-loglevel", "error", "-i", generated, "-filter_complex",
-            f"color=black@0:s={CELL_W}x{CELL_H},format=rgba[bg];"
-            f"[0:v]crop={rw}:{rh}:{g[0]}:{g[1]},scale={tw}:{sh}:flags=lanczos[c];"
-            f"[bg][c]overlay={x_off}:{s[1]}", "-frames:v", "1", cell], check=True)
-        cells.append(cell)
-
-    if not edited_in_place:
-        normalized = os.path.join(out_dir, "normalized.png")
+        if len(runs) != columns:
+            print(f"found {len(runs)} characters, expected {columns}: cannot line them up")
+            return 1
+        cells = []
+        for i in range(columns):
+            s = bbox(src, row_w, CELL_H, i * CELL_W, (i + 1) * CELL_W)
+            sh = s[3] - s[1] + 1
+            g = bbox(gen, gw, gh, runs[i][0], runs[i][1])
+            rw, rh = g[2] - g[0] + 1, g[3] - g[1] + 1
+            tw = max(1, round(rw * (sh / rh)))
+            x_off = round((s[0] + s[2]) / 2 - tw / 2) - i * CELL_W
+            cell = os.path.join(out_dir, f"cell{i}.png")
+            subprocess.run([
+                "ffmpeg", "-y", "-loglevel", "error", "-i", generated, "-filter_complex",
+                f"color=black@0:s={CELL_W}x{CELL_H},format=rgba[bg];"
+                f"[0:v]crop={rw}:{rh}:{g[0]}:{g[1]},scale={tw}:{sh}:flags=lanczos[c];"
+                f"[bg][c]overlay={x_off}:{s[1]}", "-frames:v", "1", cell], check=True)
+            cells.append(cell)
+        compare_to = os.path.join(out_dir, "normalized.png")
         args = ["ffmpeg", "-y", "-loglevel", "error"]
         for c in cells:
             args += ["-i", c]
-        args += ["-filter_complex", "".join(f"[{i}:v]" for i in range(COLUMNS)) +
-                 f"hstack=inputs={COLUMNS}", "-frames:v", "1", normalized]
+        args += ["-filter_complex", "".join(f"[{i}:v]" for i in range(columns)) +
+                 f"hstack=inputs={columns}", "-frames:v", "1", compare_to]
         subprocess.run(args, check=True)
-        norm = raw(normalized, os.path.join(out_dir, "normalized.raw"))
+        norm = raw(compare_to, os.path.join(out_dir, "normalized.raw"))
 
     print(f"\n{'cell':>4} {'silhouette moved':>17} {'colour changed':>15}")
     print("-" * 40)
     worst = 0.0
-    for c in range(COLUMNS):
+    for c in range(columns):
         x0 = c * CELL_W
         sil = body = total = counted = 0
         for y in range(CELL_H):
             for x in range(x0, x0 + CELL_W):
-                i = (y * ROW_W + x) * 4
+                i = (y * row_w + x) * 4
                 a_on, b_on = src[i + 3] > 40, norm[i + 3] > 40
                 body += a_on
                 sil += a_on != b_on
@@ -146,12 +144,11 @@ def main():
         print(f"{c:>4} {pct:>16.1f}% {total / max(counted, 1):>15.1f}")
 
     compare = os.path.join(out_dir, "compare.png")
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", src_png, "-i", normalized,
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", src_png, "-i", compare_to,
                     "-filter_complex", "[0:v][1:v]vstack,scale=1400:-1", compare], check=True)
-
     print(f"\nworst silhouette change: {worst:.1f}%")
     print("a real edit scores 0.0%; anything past about 1% will visibly pop")
-    print(f"\nnormalized row: {normalized}\ncomparison:     {compare}")
+    print(f"\ncomparison: {compare}")
     return 0 if worst < 1.0 else 1
 
 
