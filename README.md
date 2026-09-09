@@ -1,8 +1,9 @@
 # Mikkel
 
 A desktop pet for macOS that reacts to what Claude Code is doing. Mikkel is the
-navy-and-gold arctic fox hatched with the Codex `hatch-pet` skill, reusing that
-spritesheet and driving it from Claude Code's hook system instead.
+navy-and-gold arctic fox. His artwork was originally hatched with the Codex
+`hatch-pet` skill, but this is its own app now: it answers to Claude Code's
+hooks, and the sheet has grown past what that skill would accept.
 
 <p align="center">
   <img src="docs/hero.png" alt="Mikkel working, with a speech bubble reading &quot;Let me run the test suite&quot; and a timer at 14 seconds" width="260">
@@ -101,12 +102,16 @@ He settles properly rather than cutting: four frames lower him from sitting
 into a curl with his eyes closing, then four more breathe. The settle's last
 frame and the loop's first are the same drawing, so the handover has no jump.
 
-That sleep row is a twelfth row, one past the eleven the v2 contract defines,
-making this atlas 1536x2496. The contract has no sleeping state, and the eleven
-rows were full: fourteen cells were free but the longest contiguous run was
-four. An atlas that stops at eleven rows still loads, and falls back to a still
-closed-eye pose. Keep `~/.codex/pets/mikkel` at eleven rows, since Codex itself
-rejects anything taller.
+That sleep row is a twelfth row, one past the eleven the original pet format
+defines, making this atlas 1536x2496. That format has no sleeping state and its
+eleven rows were full: fourteen cells were free, but the longest run of them was
+four. An atlas that stops at eleven rows still loads and falls back to a still
+closed-eye pose.
+
+The row layout is this app's to decide now. Nothing downstream reads the sheet,
+so the eight-column grid and the eleven-row limit are history rather than
+constraints: the loader wants the cell size and the row map in
+`AnimationCatalog`, and rows can be added for whatever the pet needs.
 
 Finishing a turn is rest, not a request. Claude Code notifies both when it needs
 a decision and when it has simply finished and is waiting, and treating the
@@ -114,7 +119,7 @@ second as a request left him asking for input after the work was already done.
 
 ## Jumping
 
-The contract gives jumping five frames. This atlas uses all eight, for a proper
+The original format gives jumping five frames. This atlas uses all eight, for a proper
 arc: settle, crouch, launch, rise, peak, fall, land, recover. Frames 0 and 7 are
 the same grounded pose, so it starts and ends where it began. The timing is
 quick through the air and slower at either end, which gives the leap some snap.
@@ -283,11 +288,14 @@ Everything else is byte-identical to the current generated atlas.
 
 ## The spritesheet
 
-Unchanged from `hatch-pet`, and the app enforces the v2 contract at load:
-1536x2288, 8 columns by 11 rows, 192x208 cells. Rows 0-8 are animation states
-with the contract's uneven per-frame durations. Rows 9 and 10 are the 16
-clockwise look directions, where `000` is up, not front. Front-facing neutral is
-row 0, column 6, which is also the menu bar icon.
+1536x2496: 8 columns by 12 rows of 192x208 cells. Rows 0-8 are animation states
+with uneven per-frame durations. Rows 9 and 10 are the 16 clockwise look
+directions, where `000` is up, not front. Row 11 is sleep. Front-facing neutral
+is row 0, column 6, which is also the menu bar icon.
+
+The app checks the manifest's `spriteVersionNumber` and the cell geometry at
+load, and treats a sheet that stops at eleven rows as valid without a sleep
+animation.
 
 Swapping in another hatched pet is a matter of replacing the two files in
 `Sources/MikkelPet/Resources`.
