@@ -58,6 +58,11 @@ public enum PetState: String, CaseIterable {
     /// twin he simply stares. Idle is absent on purpose: its blink is drawn
     /// into the loop itself.
     ///
+    /// The sad row is the odd one: half its cells were drawn with his eyes
+    /// already shut or behind his paws, so the twin only differs from it in
+    /// four of eight. It is still worth having, because the four it changes are
+    /// the ones where he is looking at you.
+    ///
     /// Rows are numbered by when the art arrived rather than by state order,
     /// because a row is only added once it is filled. An empty reserved row
     /// would draw nothing at all.
@@ -66,6 +71,7 @@ public enum PetState: String, CaseIterable {
         case .running: return 14
         case .review: return 15
         case .waiting: return 16
+        case .failed: return 17
         default: return nil
         }
     }

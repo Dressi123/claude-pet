@@ -19,7 +19,7 @@ CELL_W, CELL_H = 192, 208
 SHEET = "Sources/MikkelPet/Resources/spritesheet.png"
 # How many of the eight columns each row actually uses. Mirrors the duration
 # lists in AnimationCatalog; a mismatch here just means a clearer error.
-USED_COLUMNS = {6: 6, 7: 6, 8: 6, 9: 8, 10: 8}
+USED_COLUMNS = {5: 8, 6: 6, 7: 6, 8: 6, 9: 8, 10: 8}
 
 
 def raw(path, out):

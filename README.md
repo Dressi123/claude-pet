@@ -156,11 +156,15 @@ The cadence is taken from the idle row rather than invented, so both ways of
 resting blink at the same rate, and it is jittered by a quarter either way
 because a blink on a fixed interval reads as a metronome.
 
-Working, inspecting and asking blink too, from rows 14, 15 and 16. A held pose is
-one still cell for seconds at a time, so those were the states where he most
-obviously stared. Watching the pointer and holding a pose share one blink
-schedule, because they are mutually exclusive and moving between them should not
-restart the clock or fire a blink the moment he turns to look at you.
+Working, inspecting, asking and the sad reaction blink too, from rows 14 to 17.
+A held pose is one still cell for seconds at a time, so those were the states
+where he most obviously stared. The sad row is the odd one of the four: half its
+cells were drawn with his eyes already shut or hidden behind his paws, so its
+twin differs from it in only four cells of eight. It earns its place because
+those four are the ones where he is looking at you. Watching the pointer and
+holding a pose share one blink schedule, because they are mutually exclusive and
+moving between them should not restart the clock or fire a blink the moment he
+turns to look at you.
 
 Rows are numbered by when the art arrived rather than by state, because a row is
 only added once it is filled: an empty reserved row would draw nothing at all. A
@@ -350,11 +354,11 @@ Everything else is byte-identical to the current generated atlas.
 
 ## The spritesheet
 
-1536x3536: 8 columns by 17 rows of 192x208 cells. Rows 0-8 are animation states
+1536x3744: 8 columns by 18 rows of 192x208 cells. Rows 0-8 are animation states
 with uneven per-frame durations. Rows 9 and 10 are the 16 clockwise look
 directions, where `000` is up, not front. Row 11 is sleep. Rows 12 and 13 are the
 closed-eye twins of the look directions, split the same way rows 9 and 10 are,
-and rows 14, 15 and 16 are the twins of the working, inspecting and asking poses.
+and rows 14 to 17 are the twins of the working, inspecting, asking and sad poses.
 Front-facing neutral is row 0, column 6, which is also the menu bar icon.
 
 The app counts rows rather than matching a fixed height. Eleven is the floor,
