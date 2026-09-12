@@ -1,114 +1,139 @@
-# The den he runs into when he is sent away
+# The den, as a row he walks into
 
-## What went wrong the first time, so it is not repeated
+## What changed and why
 
-Two failures, both worth naming because both are the model doing what it was
-asked rather than misunderstanding.
+The first den was a still tab at the screen edge in a window of its own, and
+the pet's window passed behind it. Two problems, both structural.
 
-**It painted a checkerboard.** Asked for a transparent background, an image
-model draws the grey-and-white checker it has seen behind ten thousand cut-out
-stock images. That is pixels, not alpha, and it cannot be undone cleanly: the
-checker sits behind every soft edge, so keying it out eats the anti-aliased rim
-that makes the object look rendered rather than cut out.
+It was 48 points wide against his 144, so it could never look like he went
+inside it: he is three times its size. And with the den in one window and him
+in another, whether he is in front of it or behind it is decided by window
+ordering, which is a single choice for the whole sprite. He cannot be in front
+of the door frame and behind the far wall at the same time, which is what
+walking through a doorway actually looks like.
 
-The fix is to stop asking for transparency at all. Ask for a **flat magenta
-background**, `#FF00FF`. Nothing in this palette is anywhere near magenta, so it
-keys out exactly, edges and all. Transparency is a file format problem, and this
-repo can solve file format problems.
-
-**It was asked for exact pixel dimensions.** Image models cannot hit 192 x 208
-and will distort the drawing trying. So do not ask. Let it render at whatever
-size it likes, with room around the object, and cut the cells here.
-
-The rule that follows from both: **ask the model only for the picture.** Size,
-alignment, grid and alpha are all done locally afterwards.
+Both go away if the den and the fox are drawn together. Then he is in front of
+whatever the artist puts him in front of, and the den is as big as it needs to
+be for him to fit through it.
 
 ## The job
 
-One image, two dens side by side on flat magenta, generous margin around and
-between them.
+**Five cells side by side, each 192 x 208**, the same cell as every pose in the
+spritesheet. The den is in all five, in exactly the same position and at exactly
+the same size. Only the fox changes.
 
-| Left | Right |
+| Cell | What it shows |
 |---|---|
-| The den, empty. Nobody home. | The same den, with him just inside: eyes and the tip of his nose in the shadow of the opening, nothing else. |
+| 0 | The den alone, mouth open and dark. Nobody in sight. |
+| 1 | The fox beside it on the left, side on, facing right, about to go in. |
+| 2 | Head and shoulders inside the mouth, back half still out. |
+| 3 | Only his hindquarters and the tail still out. |
+| 4 | The den alone again, but with his eyes and the tip of his nose catching the light inside the mouth. |
 
-The empty one is what he runs into and back out of. The occupied one is what
-stands there while he is gone, and the swap between them happens at the exact
-moment his window goes, so he reads as arriving rather than vanishing.
+Played 0 to 4 he goes in. Played 4 to 0 he comes out. That is the whole
+animation, and it is why the den may not move by a single pixel between cells:
+it is on screen continuously while the fox changes underneath it.
 
-That swap is the whole reason the two have to be the same den in the same
-position at the same size, with nothing changed but what is looking out.
-Generate both in one pass so they cannot drift apart, the same way the blink
-rows are generated a whole row at a time. A difference of a few pixels between
-them is a jump at exactly the moment you are looking at it.
+**He passes in front of the near side of the mouth and behind the far side**,
+which is the thing a separate window could never do.
 
-## The shape
+## The den faces left
 
-**Seen from the side, with the opening facing sideways**, so he can run
-straight into it. Not a three-quarter view, and not the entrance facing the
-camera: those are what the first attempts produced and neither lets him run in.
+He runs rightwards to leave by the right-hand edge, so the mouth faces left and
+he walks in from the left. It is mirrored for the other edge, so nothing may
+depend on which way it faces.
 
-A small rounded den, the kind of soft kennel a toy fox would own, in profile,
-with its arched mouth at one end and the body of it extending away behind. The
-mouth faces **right**, so he runs in leftwards. It gets mirrored for the other
-screen edge, so nothing may depend on which way it faces: no hinges, no latch,
-no lettering, nothing that reads backwards.
+## Size
 
-## Slim is still the point
+Bigger than the first attempt, which was too small to be a door. The den should
+fill roughly two thirds of the cell's width and most of its height, leaving room
+on the left for him to stand beside it in cell 1. On screen at the default Size
+that puts it near 100 points wide against his 144.
 
-The pet is 144 points wide and his bubble is 256. Getting that off the screen is
-the reason any of this exists, so a den that replaces him with a building has
-moved the problem rather than solved it.
+## The hard constraint, which is the same one the blink rows have
 
-It is parked flush against the screen edge with its back half off the screen,
-so what shows is the mouth and a little of the body. Keep it low and wide
-rather than tall: it should sit no higher than his shoulder.
+Generate all five in one pass. Image models drift on shading, proportion and
+placement between separate generations, and here the drift lands on the den,
+which is the part that must not move. A den that shifts two pixels between cells
+reads as the whole world lurching every time he steps.
+
+If five cells will not hold together, **three is worth more than five that
+wobble**: den alone, him half in, and the eyes. Say so rather than sending five
+that drift.
 
 ## What it has to look like
 
 The pet is a 3D-rendered cartoon fox with a soft plush, almost felted surface,
-matte rather than glossy, lit softly from the upper left. The den has to look
-rendered by the same hand and in the same material. `_reference-fox.png` in this
-folder is him at twice size, front on and side on. Attach it.
+matte rather than glossy, lit softly from the upper left. The fox in these cells
+has to be that fox, not a new one, so attach **both** references in this folder.
+They do different jobs.
 
-- **Palette**: his navy, roughly `#1a2c4e` through `#204060`, with the amber of
-  his tail and eyebrows, `#e0a030`, and the cream of his muzzle for relief. No
-  other hue, magenta background aside.
-- **No baked shadow.** The pet cells have none and the window draws none, so a
-  shadow here would float above a floor that is not there.
-- **No text and no lettering.**
-- It ends up about 100 points across, so fine stitching, small hinges and thin
-  outlines all disappear. Bold shapes, few details.
+- `_reference-fox.png` is him at twice size, front on and three-quarter. This is
+  the material, the palette, the lighting and the face.
+- `_reference-running.png` is three cells of the running row at twice size: the
+  same fox in side profile, moving right, tail trailing behind him. This is the
+  profile, the proportions and the tail, and it is the angle every cell of this
+  animation is drawn from. Without it the model has only a front view to work
+  from and invents a side.
+
+Note what neither reference can give it. Nothing in the atlas shows him from
+behind, because the look directions turn his head rather than his body. Cell 3,
+where only his hindquarters and tail are still outside, is therefore the one
+view he has never been drawn in, and the cell most likely to come back wrong.
+If it does, drop it: den alone, him beside it, him half in, and the eyes still
+reads as going inside.
+
+- **Wood**, as in the version that worked: navy planks, cream arch, amber
+  fittings. Palette `#1a2c4e` to `#204060` navy, `#e0a030` amber, cream trim.
+- **No baked shadow**, no text, no lettering.
+- **Flat magenta background**, `#FF00FF`. Not transparency, not a checkerboard.
+  Magenta is nowhere near this palette, so it keys out exactly, and getting a
+  real alpha channel out of it is this repo's problem rather than the model's.
+- Do not ask the model for exact pixel dimensions. It cannot hit them and will
+  distort the drawing trying. Any size, generous margin, cut here.
 
 ## The prompt
 
-> The attached image is a character. Match its style exactly: the same soft
-> plush felted material, the same matte finish, the same soft light from the
-> upper left, the same palette.
+> Two images are attached, both of the same character. Match him exactly: the
+> same fox, the same soft plush felted material, the same matte finish, the same
+> soft light from the upper left, the same palette.
 >
-> Draw two small pet dens side by side on a **flat solid magenta background,
-> hex #FF00FF**, filling the whole background. Do not draw a transparent
-> background and do not draw a checkerboard. Solid magenta everywhere the dens
-> are not.
+> The first is him front on and three-quarter, which is the material, the
+> colours and the face. The second is him in side profile running to the right,
+> tail trailing behind him. The second is the angle to draw him from in every
+> panel below: match that profile, that tail and those proportions.
 >
-> Both dens are the same object, drawn at the same size and in the same pose,
-> **seen from the side, in profile, with the arched entrance facing right** so
-> that an animal could run straight in from the right. The body of the den
-> extends away to the left behind the entrance. It is low and wide, like a soft
-> rounded kennel, not tall and not a house.
+> Draw five panels in a row, left to right, on a flat solid magenta background,
+> hex #FF00FF. Solid magenta everywhere the drawing is not. Do not draw a
+> transparent background and do not draw a checkerboard.
 >
-> In the left one the entrance is empty and dark. In the right one a small navy
-> fox is just inside, so that only his eyes and the tip of his nose catch the
-> light in the opening. Everything else about the two is identical.
+> Every panel contains the same wooden den, drawn at exactly the same size and
+> in exactly the same position in its panel, seen from the side with its arched
+> mouth facing left and open onto darkness. The den must not move or change at
+> all between panels. It is made of navy planks with a cream arch around the
+> mouth and small amber fittings.
 >
-> Render them as 3D cartoon objects with a soft plush, felted, matte surface,
-> the way a stitched toy looks. Deep navy blues around #1a2c4e to #204060, amber
-> #e0a030 accents, cream trim. No other colours. No shadow on the ground, no
-> text, no lettering, no paw prints.
+> What changes is the fox:
 >
-> Leave a clear margin of magenta around and between them.
+> 1. The den alone. No fox anywhere.
+> 2. The fox standing to the left of the mouth, side on, facing right towards
+>    it, about to walk in.
+> 3. The fox halfway in: head and shoulders swallowed by the dark mouth, back
+>    half and tail still outside. He passes in front of the near edge of the
+>    arch.
+> 4. Almost gone: only his hindquarters and tail still outside the mouth.
+> 5. The den alone again, except that his two eyes and the tip of his nose catch
+>    the light just inside the dark mouth.
+>
+> Render everything as 3D cartoon objects with a soft plush, felted, matte
+> surface, the way a stitched toy looks. Deep navy blues around #1a2c4e to
+> #204060, amber #e0a030 accents, cream trim. No other colours. No shadow on the
+> ground, no text, no lettering.
+>
+> Leave a clear margin of magenta around and between the panels.
 
 ## When it comes back
 
-Send it over whatever size it is. Keying the magenta, cutting the two cells,
-matching their alignment and exporting the strip all happen here.
+Send it at whatever size it is. Keying the magenta, cutting the five cells,
+checking the den has not moved between them and exporting the strip all happen
+here. The den not moving is measured, not eyeballed.
