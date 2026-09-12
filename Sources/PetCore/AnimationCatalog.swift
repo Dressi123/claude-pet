@@ -65,6 +65,7 @@ public enum PetState: String, CaseIterable {
         switch self {
         case .running: return 14
         case .review: return 15
+        case .waiting: return 16
         default: return nil
         }
     }
