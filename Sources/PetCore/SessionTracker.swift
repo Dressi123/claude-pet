@@ -92,7 +92,7 @@ public final class SessionTracker {
         snapshot.projectName.isEmpty ? "session" : snapshot.projectName
     }
 
-    /// Read tools make Mikkel inspect; everything else makes him work.
+    /// Read tools make him inspect; everything else makes him work.
     private static func state(forTool tool: String) -> PetState {
         switch tool {
         case "Read", "Grep", "Glob", "NotebookRead", "WebFetch", "WebSearch", "ToolSearch":

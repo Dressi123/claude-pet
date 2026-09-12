@@ -1,4 +1,4 @@
-// Turns Claude Code's tool traffic into something Mikkel would actually say.
+// Turns Claude Code's tool traffic into something the pet would actually say.
 //
 // Two rules. Never show a tool name, because "Bash:" is machinery and reads
 // like a log line. And never show the private description verbatim, because it

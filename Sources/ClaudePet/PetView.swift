@@ -1,4 +1,4 @@
-// Draws Mikkel and runs his animation clock.
+// Draws the pet and runs his animation clock.
 //
 // The atlas uses uneven per-frame durations, so frames are advanced against a
 // wall clock rather than by a fixed-interval tick.
@@ -87,7 +87,7 @@ final class PetView: NSView {
     private static let quickHold: ClosedRange<Double> = 0.5...1.1
     private static let quickChance = 0.35
 
-    /// While idle, Mikkel watches the pointer using the 16 look directions.
+    /// While idle, he watches the pointer using the 16 look directions.
     var pointerTrackingEnabled = true
     /// Whether he reacts to the pointer arriving over him.
     var jumpsOnHover = true
@@ -167,7 +167,7 @@ final class PetView: NSView {
     static let thoughtTrail: CGFloat = 17
     static var stemHeight: CGFloat { max(tailHeight, thoughtTrail) }
 
-    /// The bubble is kept close to Mikkel's own width so it reads as him
+    /// The bubble is kept close to the pet's own width so it reads as him
     /// speaking rather than as a banner hung over him. A long line therefore
     /// wraps downward instead of stretching sideways.
     static let bubbleSidePadding: CGFloat = 10
@@ -194,7 +194,7 @@ final class PetView: NSView {
             ?? NSFont.monospacedDigitSystemFont(ofSize: size, weight: .regular)
     }
 
-    /// Ink, not black: the balloon picks up the deep navy Mikkel is drawn in,
+    /// Ink, not black: the balloon picks up the deep navy he is drawn in,
     /// and the text is the cream of his muzzle rather than a flat white.
     static let inkTop = NSColor(calibratedRed: 0.11, green: 0.15, blue: 0.27, alpha: 0.97)
     static let inkBottom = NSColor(calibratedRed: 0.04, green: 0.06, blue: 0.13, alpha: 0.97)
@@ -213,7 +213,7 @@ final class PetView: NSView {
     /// near the pet's own width, by `maxBubbleWidth`.
     static let bubbleWidth: CGFloat = 280
 
-    /// No wider than Mikkel himself. The sprite cell has transparent margins,
+    /// No wider than the pet himself. The sprite cell has transparent margins,
     /// so his drawn body is about 0.88 of the cell — matching that, rather than
     /// the cell, is what makes the bubble look like it belongs to him. There is
     /// a floor so the text stays readable when he is scaled right down.
@@ -712,7 +712,7 @@ final class PetView: NSView {
 
     private var lastTrace = ""
     private func debugTrace(_ message: String, dedupe: Bool = true) {
-        guard ProcessInfo.processInfo.environment["MIKKEL_PET_DEBUG"] == "1" else { return }
+        guard ProcessInfo.processInfo.environment["CLAUDE_PET_DEBUG"] == "1" else { return }
         if dedupe {
             guard message != lastTrace else { return }
             lastTrace = message
@@ -1155,7 +1155,7 @@ final class PetView: NSView {
         window.setFrameOrigin(frame.origin)
         dragOrigin = mouse
 
-        // Mikkel runs in whichever direction he is being carried.
+        // He runs in whichever direction he is being carried.
         let facing: PetState = dx >= 0 ? .runningRight : .runningLeft
         if dragState != facing {
             dragState = facing

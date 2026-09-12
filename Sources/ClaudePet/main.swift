@@ -1,4 +1,4 @@
-// Mikkel: a desktop pet that reacts to what Claude Code is doing.
+// Claude Pet: a desktop pet that reacts to what Claude Code is doing.
 
 import PetCore
 import AppKit
@@ -52,12 +52,12 @@ if let command = arguments.first {
         }
     case "--help", "-h":
         print("""
-        mikkel-pet - a Claude Code desktop pet
+        claude-pet - a Claude Code desktop pet
 
-          mikkel-pet                    run the pet
-          mikkel-pet --install-hooks    add the pet's hooks to ~/.claude/settings.json
-          mikkel-pet --uninstall-hooks  remove them again
-          mikkel-pet --snapshot <png>    render one frame to a file (development aid)
+          claude-pet                    run the pet
+          claude-pet --install-hooks    add the pet's hooks to ~/.claude/settings.json
+          claude-pet --uninstall-hooks  remove them again
+          claude-pet --snapshot <png>    render one frame to a file (development aid)
         """)
         exit(0)
     default:
@@ -116,15 +116,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PetViewDelegate {
 
         tracker.followsBackgroundSessions = UserDefaults.standard.bool(forKey: backgroundKey)
         tracker.onChange = { [weak self] resting, oneShot, label, session in
-            if ProcessInfo.processInfo.environment["MIKKEL_PET_DEBUG"] == "1" {
+            if ProcessInfo.processInfo.environment["CLAUDE_PET_DEBUG"] == "1" {
                 FileHandle.standardError.write(Data(
                     "state \(resting.rawValue) oneShot=\(oneShot?.rawValue ?? "-") session=\(session) label=\(label)\n".utf8))
             }
             self?.petView.apply(resting: resting, oneShot: oneShot, label: label, session: session)
             self?.refreshStatusTitle()
         }
-        // MIKKEL_PET_DEBUG=1 traces the hook stream while wiring things up.
-        let debug = ProcessInfo.processInfo.environment["MIKKEL_PET_DEBUG"] == "1"
+        // CLAUDE_PET_DEBUG=1 traces the hook stream while wiring things up.
+        let debug = ProcessInfo.processInfo.environment["CLAUDE_PET_DEBUG"] == "1"
         tracker.onAllSessionsEnded = { [weak self] in self?.petView.sleepNow() }
         server.onEvent = { [weak self] event in
             if debug {
@@ -139,7 +139,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PetViewDelegate {
         } catch EventServer.ServerError.alreadyRunning {
             // A duplicate copy that kept running would be a pet that never
             // reacts, so quit rather than sit there looking broken.
-            presentInfo("Mikkel is already running.")
+            presentInfo("Claude Pet is already running.")
             NSApp.terminate(nil)
             return
         } catch {
@@ -520,7 +520,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PetViewDelegate {
 
     private func presentWarning(_ text: String) {
         let alert = NSAlert()
-        alert.messageText = "Mikkel"
+        alert.messageText = "Claude Pet"
         alert.informativeText = text
         alert.alertStyle = .warning
         alert.runModal()
@@ -528,7 +528,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PetViewDelegate {
 
     private func presentFatal(_ text: String) {
         let alert = NSAlert()
-        alert.messageText = "Mikkel could not start"
+        alert.messageText = "Claude Pet could not start"
         alert.informativeText = text
         alert.alertStyle = .critical
         alert.runModal()

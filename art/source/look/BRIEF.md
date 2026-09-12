@@ -1,4 +1,4 @@
-# Look-direction blink rows for Mikkel
+# Look-direction blink rows for the pet
 
 ## The job
 

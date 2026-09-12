@@ -1,0 +1,7 @@
+{
+  "id": "claude-pet",
+  "displayName": "Claude Pet",
+  "description": "A navy-and-gold fox who explores carefully, measures twice, and turns discoveries into useful systems.",
+  "spriteVersionNumber": 2,
+  "spritesheetPath": "spritesheet.png"
+}

@@ -1,11 +1,11 @@
 #!/bin/bash
-# Builds Mikkel.app so the pet can be launched from Finder and added to
+# Builds "Claude Pet.app" so the pet can be launched from Finder and added to
 # Login Items. The hook helper ships inside the bundle's MacOS directory,
 # which is where HookInstaller looks for it.
 set -euo pipefail
 
 cd "$(dirname "$0")"
-APP="${1:-$HOME/Applications/Mikkel.app}"
+APP="${1:-$HOME/Applications/Claude Pet.app}"
 
 swift build -c release
 BIN=".build/release"
@@ -13,24 +13,24 @@ BIN=".build/release"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
-cp "$BIN/MikkelPet" "$APP/Contents/MacOS/MikkelPet"
-cp "$BIN/mikkel-hook" "$APP/Contents/MacOS/mikkel-hook"
+cp "$BIN/ClaudePet" "$APP/Contents/MacOS/claude-pet"
+cp "$BIN/claude-pet-hook" "$APP/Contents/MacOS/claude-pet-hook"
 # The artwork goes in Contents/Resources, where an app bundle keeps its
 # resources and where a signature can seal it. It used to be copied in as
 # SwiftPM's own resource bundle, which Bundle.module cannot find inside an
 # .app: the installed app then fell back to reading the spritesheet out of the
 # build directory, so it broke whenever the checkout moved and made macOS ask
 # for access to whatever folder that was.
-cp "$BIN/MikkelPet_MikkelPet.bundle/Resources/"* "$APP/Contents/Resources/"
+cp "$BIN/ClaudePet_ClaudePet.bundle/Resources/"* "$APP/Contents/Resources/"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleExecutable</key><string>MikkelPet</string>
-  <key>CFBundleIdentifier</key><string>dev.andreas.mikkel-pet</string>
-  <key>CFBundleName</key><string>Mikkel</string>
+  <key>CFBundleExecutable</key><string>claude-pet</string>
+  <key>CFBundleIdentifier</key><string>dev.andreas.claude-pet</string>
+  <key>CFBundleName</key><string>Claude Pet</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>1.0</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
@@ -59,11 +59,11 @@ fi
 # deprecated, and it was failing here on the resource bundle and taking the
 # whole signature with it, silently, because the failure was thrown away. The
 # app then carried only the linker's own signature.
-codesign --force --sign "$IDENTITY" "$APP/Contents/MacOS/mikkel-hook"
-codesign --force --sign "$IDENTITY" "$APP/Contents/MacOS/MikkelPet"
-codesign --force --sign "$IDENTITY" --identifier dev.andreas.mikkel-pet "$APP"
+codesign --force --sign "$IDENTITY" "$APP/Contents/MacOS/claude-pet-hook"
+codesign --force --sign "$IDENTITY" "$APP/Contents/MacOS/claude-pet"
+codesign --force --sign "$IDENTITY" --identifier dev.andreas.claude-pet "$APP"
 codesign --verify --strict "$APP"
 
 echo "Built $APP"
 echo "Install the hooks with:"
-echo "  \"$APP/Contents/MacOS/MikkelPet\" --install-hooks"
+echo "  \"$APP/Contents/MacOS/claude-pet\" --install-hooks"

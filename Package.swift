@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "MikkelPet",
+    name: "ClaudePet",
     platforms: [.macOS(.v13)],
     targets: [
         .target(
@@ -11,21 +11,21 @@ let package = Package(
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         .testTarget(
-            name: "MikkelPetTests",
+            name: "ClaudePetTests",
             dependencies: ["PetCore"],
-            path: "Tests/MikkelPetTests",
+            path: "Tests/ClaudePetTests",
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         .executableTarget(
-            name: "MikkelPet",
+            name: "ClaudePet",
             dependencies: ["PetCore"],
-            path: "Sources/MikkelPet",
+            path: "Sources/ClaudePet",
             resources: [.copy("Resources")],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         .executableTarget(
-            name: "mikkel-hook",
-            path: "Sources/mikkel-hook",
+            name: "claude-pet-hook",
+            path: "Sources/claude-pet-hook",
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
     ]

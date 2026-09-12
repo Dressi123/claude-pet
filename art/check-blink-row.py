@@ -16,7 +16,7 @@ poses, 9 or 10 for the look directions. Needs ffmpeg and ffprobe on PATH.
 import os, subprocess, sys, tempfile
 
 CELL_W, CELL_H = 192, 208
-SHEET = "Sources/MikkelPet/Resources/spritesheet.png"
+SHEET = "Sources/ClaudePet/Resources/spritesheet.png"
 # How many of the eight columns each row actually uses. Mirrors the duration
 # lists in AnimationCatalog; a mismatch here just means a clearer error.
 USED_COLUMNS = {5: 8, 6: 6, 7: 6, 8: 6, 9: 8, 10: 8}

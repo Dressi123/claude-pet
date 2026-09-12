@@ -2,7 +2,7 @@
 // honest to what the app draws and carries no desktop background with it.
 //
 // The two balloon pictures, hero.png and asking.png, are NOT made here. They
-// come out of the app itself via `MikkelPet --snapshot`, because a second
+// come out of the app itself via `ClaudePet --snapshot`, because a second
 // implementation of the balloon is a second thing to keep in step, and it fell
 // out of step the first time the design changed. See the README.
 import AppKit

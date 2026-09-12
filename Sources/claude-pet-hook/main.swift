@@ -1,4 +1,4 @@
-// mikkel-hook: reads a Claude Code hook payload on stdin, forwards a compact
+// claude-pet-hook: reads a Claude Code hook payload on stdin, forwards a compact
 // event to the running pet over a Unix datagram socket, and always exits 0.
 //
 // Claude Code blocks a tool call when a PreToolUse hook exits non-zero, so this
@@ -8,11 +8,11 @@
 import Foundation
 
 func socketPath() -> String {
-    if let override = ProcessInfo.processInfo.environment["MIKKEL_PET_SOCKET"], !override.isEmpty {
+    if let override = ProcessInfo.processInfo.environment["CLAUDE_PET_SOCKET"], !override.isEmpty {
         return override
     }
     let home = FileManager.default.homeDirectoryForCurrentUser.path
-    return home + "/.mikkel-pet/pet.sock"
+    return home + "/.claude-pet/pet.sock"
 }
 
 /// Shortens a value for the speech bubble. Never carries file contents or

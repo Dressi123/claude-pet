@@ -143,7 +143,7 @@ final class PhrasebookTests: XCTestCase {
     }
 
     /// A Bash description is written in the imperative for Claude, so it has to
-    /// be folded into Mikkel's own sentence rather than shown raw.
+    /// be folded into the pet's own sentence rather than shown raw.
     func testBashDescriptionBecomesFirstPerson() {
         let line = Phrasebook.working(tool: "Bash", detail: .description,
                                       value: "Stack the two bubble captures")

@@ -8,10 +8,10 @@ import Foundation
 
 final class EventServer {
     static func defaultSocketPath() -> String {
-        if let override = ProcessInfo.processInfo.environment["MIKKEL_PET_SOCKET"], !override.isEmpty {
+        if let override = ProcessInfo.processInfo.environment["CLAUDE_PET_SOCKET"], !override.isEmpty {
             return override
         }
-        return FileManager.default.homeDirectoryForCurrentUser.path + "/.mikkel-pet/pet.sock"
+        return FileManager.default.homeDirectoryForCurrentUser.path + "/.claude-pet/pet.sock"
     }
 
     private let path: String
@@ -140,7 +140,7 @@ final class EventServer {
             case .pathTooLong(let path):
                 return "Socket path is too long for a Unix socket: \(path)"
             case .alreadyRunning:
-                return "Mikkel is already running. This copy will now quit so the first one keeps working."
+                return "Claude Pet is already running. This copy will now quit so the first one keeps working."
             }
         }
     }

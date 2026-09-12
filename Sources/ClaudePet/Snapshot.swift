@@ -192,9 +192,9 @@ enum Snapshot {
 
         view.apply(resting: state, oneShot: nil, label: label, session: session)
         // Long enough for the animation clock to land on a real sprite frame.
-        // Raise it with MIKKEL_PET_SNAPSHOT_SETTLE to catch a later moment,
+        // Raise it with CLAUDE_PET_SNAPSHOT_SETTLE to catch a later moment,
         // such as the elapsed clock, which only appears once a job drags on.
-        let settle = ProcessInfo.processInfo.environment["MIKKEL_PET_SNAPSHOT_SETTLE"]
+        let settle = ProcessInfo.processInfo.environment["CLAUDE_PET_SNAPSHOT_SETTLE"]
             .flatMap(Double.init) ?? 0.5
         RunLoop.current.run(until: Date().addingTimeInterval(settle))
         view.layoutSubtreeIfNeeded()
@@ -217,14 +217,14 @@ enum Snapshot {
         // white paper its own dark fill would be impossible to judge. The
         // README art wants no ground at all, so it can sit on any page.
         let environment = ProcessInfo.processInfo.environment
-        if environment["MIKKEL_PET_SNAPSHOT_BG"] != "none" {
+        if environment["CLAUDE_PET_SNAPSHOT_BG"] != "none" {
             NSColor(calibratedRed: 0.12, green: 0.13, blue: 0.16, alpha: 1).setFill()
             NSRect(origin: .zero, size: size).fill()
         }
         view.layer?.render(in: context.cgContext)
         NSGraphicsContext.restoreGraphicsState()
 
-        let cropped = environment["MIKKEL_PET_SNAPSHOT_CROP"] == "1"
+        let cropped = environment["CLAUDE_PET_SNAPSHOT_CROP"] == "1"
             ? crop(rep, scale: pixelScale) : rep
         guard let data = cropped.representation(using: .png, properties: [:]) else {
             throw Failure("could not encode the PNG")

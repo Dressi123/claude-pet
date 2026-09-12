@@ -1,13 +1,13 @@
-# Mikkel
+# claude-pet
 
 A desktop pet for macOS that reacts to what Claude Code is doing. He sits above
 your other windows, changes pose as Claude works, and tells you in a speech
-bubble what it is up to. Mikkel is the navy-and-gold fox.
+bubble what it is up to. He is a navy-and-gold fox, and he goes by no name.
 
 <p align="center">
-  <img src="docs/hero.png" alt="Mikkel working, with a speech bubble reading &quot;Let me run the test suite&quot; and a timer at 14 seconds" width="260">
+  <img src="docs/hero.png" alt="The pet working, with a speech bubble reading &quot;Let me run the test suite&quot; and a timer at 14 seconds" width="260">
   &nbsp;&nbsp;&nbsp;
-  <img src="docs/asking.png" alt="Mikkel with a paw raised, saying Claude needs your permission to use Bash" width="330">
+  <img src="docs/asking.png" alt="The pet with a paw raised, saying Claude needs your permission to use Bash" width="330">
 </p>
 
 ## Requirements
@@ -21,9 +21,9 @@ bubble what it is up to. Mikkel is the navy-and-gold fox.
 ```bash
 git clone <this repo>
 cd claude-pet
-./bundle.sh                                              # builds ~/Applications/Mikkel.app
-open ~/Applications/Mikkel.app
-"$HOME/Applications/Mikkel.app/Contents/MacOS/MikkelPet" --install-hooks
+./bundle.sh                                    # builds "~/Applications/Claude Pet.app"
+open "$HOME/Applications/Claude Pet.app"
+"$HOME/Applications/Claude Pet.app/Contents/MacOS/claude-pet" --install-hooks
 ```
 
 `bundle.sh` signs the app with the first code-signing identity it finds, and
@@ -33,9 +33,9 @@ for permissions again. Pass `SIGN_ID` to choose an identity.
 
 Hooks can also be installed and removed from the menu. The installed hook records
 the absolute path of the helper inside the bundle, so rerun `--install-hooks`
-after moving Mikkel.app. `--uninstall-hooks` removes them.
+after moving the app. `--uninstall-hooks` removes them.
 
-To start him at login, add Mikkel.app under System Settings, General, Login Items.
+To start him at login, add Claude Pet under System Settings, General, Login Items.
 
 ## What he does
 
@@ -44,7 +44,7 @@ To start him at login, add Mikkel.app under System Settings, General, Login Item
 | <img src="docs/idle.png" width="84"> | <img src="docs/working.png" width="84"> | <img src="docs/inspecting.png" width="84"> | <img src="docs/waiting.png" width="84"> | <img src="docs/jumping.png" width="84"> | <img src="docs/failed.png" width="84"> | <img src="docs/asleep.png" width="84"> |
 | idle | working | inspecting | asking | subagent done | something broke | asleep |
 
-| Claude Code is doing            | Mikkel        |
+| Claude Code is doing            | The pet       |
 | ------------------------------- | ------------- |
 | starting a session              | waves         |
 | thinking, or running most tools | works         |
@@ -69,7 +69,7 @@ clicking him.
 The bubble never shows a tool name. `Bash: Stack the two bubble captures` is a
 log line, not a pet, so he speaks in the first person instead.
 
-| Claude is doing        | Mikkel says                     |
+| Claude is doing        | He says                         |
 | ---------------------- | ------------------------------- |
 | reading a file         | Let me look at Atlas.swift      |
 | searching              | Hunting for socketPath          |
@@ -125,14 +125,14 @@ never leave the hook.
 
 ## How it works
 
-`--install-hooks` appends a `mikkel-hook` command to eight events in
+`--install-hooks` appends a `claude-pet-hook` command to eight events in
 `~/.claude/settings.json`: `SessionStart`, `UserPromptSubmit`, `PreToolUse`,
 `PostToolUse`, `Notification`, `SubagentStop`, `Stop` and `SessionEnd`. Entries
 are appended to the arrays already there, so other hooks keep working, and the
 file is backed up before every write.
 
-`mikkel-hook` reads the payload on stdin, sends a summary to the app over a Unix
-datagram socket at `~/.mikkel-pet/pet.sock`, and exits. Datagrams mean it never
+`claude-pet-hook` reads the payload on stdin, sends a summary to the app over a Unix
+datagram socket at `~/.claude-pet/pet.sock`, and exits. Datagrams mean it never
 waits for a reader, so Claude Code is not slowed down when the pet is closed. The
 helper exits 0 on every path, including bad JSON and a missing socket, because a
 non-zero `PreToolUse` hook would block the tool call.
@@ -161,7 +161,7 @@ a twin simply does not blink rather than holding the feature back.
 
 ## Swapping in another pet
 
-Replace `pet.json` and `spritesheet.png` in `Sources/MikkelPet/Resources`.
+Replace `pet.json` and `spritesheet.png` in `Sources/ClaudePet/Resources`.
 `den.png` beside them is not part of that: the sheet is a grid of character
 poses, and the den is the app's own furniture.
 
@@ -212,15 +212,17 @@ moment the blink fires.
 
 ```
 Sources/PetCore       state machine and atlas geometry, no AppKit, covered by tests
-Sources/MikkelPet     the app: window, drawing, socket, hook installer
-Sources/mikkel-hook   the tiny binary Claude Code actually runs
+Sources/ClaudePet     the app: window, drawing, socket, hook installer
+Sources/claude-pet-hook   the tiny binary Claude Code actually runs
 ```
 
 `swift test` covers the failure rule, session priority, pruning and the atlas
 geometry.
 
-`MIKKEL_PET_DEBUG=1` traces hook events, state changes and look indices to
-stderr. `MIKKEL_PET_SOCKET` overrides the socket path for both binaries.
+`CLAUDE_PET_DEBUG=1` traces hook events, state changes and look indices to
+stderr. `CLAUDE_PET_SOCKET` overrides the socket path for both binaries, and
+`CLAUDE_PET_SETTINGS` points the hook installer at another file, which is the
+only way to exercise it without editing the settings the machine is using.
 
 `--snapshot <png>` renders one frame of the real view tree offscreen, and
 `--film <dir>` renders a scripted sequence. Both exist because screen recording
@@ -234,17 +236,17 @@ always match what the app draws:
 
 ```bash
 swiftc -O docs/render-readme-art.swift -o /tmp/render-art
-/tmp/render-art Sources/MikkelPet/Resources/spritesheet.png docs
+/tmp/render-art Sources/ClaudePet/Resources/spritesheet.png docs
 ```
 
 The two balloon pictures come out of the app itself, so the artwork cannot drift
 from the design:
 
 ```bash
-export MIKKEL_PET_SNAPSHOT_BG=none MIKKEL_PET_SNAPSHOT_CROP=1
-MIKKEL_PET_SNAPSHOT_SETTLE=6 .build/release/MikkelPet --snapshot docs/hero.png \
+export CLAUDE_PET_SNAPSHOT_BG=none CLAUDE_PET_SNAPSHOT_CROP=1
+CLAUDE_PET_SNAPSHOT_SETTLE=6 .build/release/ClaudePet --snapshot docs/hero.png \
   "Let me run the test suite" "claude-pet" running
-MIKKEL_PET_SNAPSHOT_SETTLE=3 .build/release/MikkelPet --snapshot docs/asking.png \
+CLAUDE_PET_SNAPSHOT_SETTLE=3 .build/release/ClaudePet --snapshot docs/asking.png \
   "Claude needs your permission to use Bash" "second-brain" waiting
 ```
 
