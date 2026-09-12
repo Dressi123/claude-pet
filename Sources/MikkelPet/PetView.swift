@@ -124,6 +124,9 @@ final class PetView: NSView {
     /// a look direction.
     private var pointerNow = NSPoint.zero
     private var petRectNow: CGRect?
+    /// Alpha copies of the cells he has actually been drawn as, so a click can
+    /// be tested against his outline instead of the box around it.
+    private var hitMasks: [ObjectIdentifier: [UInt8]] = [:]
     /// Whether the cell currently on screen is the blinking twin, so the sprite
     /// is only reassigned when one of the two actually changes.
     private var lookIsBlinking = false
@@ -909,8 +912,7 @@ final class PetView: NSView {
     }
 
     private func updateHover() {
-        guard let rect = petScreenRect() else { pointerIsOver = simulatesHover; return }
-        pointerIsOver = simulatesHover || rect.contains(pointerNow)
+        pointerIsOver = simulatesHover || pointerIsOnPet()
         guard pointerIsOver else { return }
         // Being hovered counts as activity, or he could drop off to sleep in
         // the one-frame gap between two jumps.
@@ -924,6 +926,15 @@ final class PetView: NSView {
     }
 
     private func petScreenRect() -> CGRect? { petRectNow }
+
+    /// Whether the pointer is on the pet himself. The bounding box would also
+    /// cover the transparent corners of his cell, where a hop reads as him
+    /// reacting to nothing. Goes through the same test a click does, rather
+    /// than a second mapping that could disagree with it.
+    private func pointerIsOnPet() -> Bool {
+        guard petRectNow != nil, let window else { return false }
+        return pointIsOnPet(convert(window.convertPoint(fromScreen: pointerNow), from: nil))
+    }
 
     /// Shows a cell, and does nothing at all when it is already the one on
     /// screen. This is the difference between compositing sixty times a second
@@ -1008,11 +1019,59 @@ final class PetView: NSView {
 
     // MARK: - Mouse
 
-    /// Only the pet itself is clickable. The transparent area around the bubble
-    /// stays click-through so it never blocks what is underneath.
+    /// Only the pet itself is clickable. The transparent area around the
+    /// bubble, and the empty corners of his own cell, stay click-through so
+    /// neither blocks what is underneath.
     override func hitTest(_ point: NSPoint) -> NSView? {
-        let local = convert(point, from: superview)
-        return petFrame.contains(local) ? self : nil
+        pointIsOnPet(convert(point, from: superview)) ? self : nil
+    }
+
+    /// Deliberately not the checker's 40. That script measures how far a
+    /// silhouette moved, where a generous cut suppresses anti-aliasing noise.
+    /// Here the anti-aliased rim is exactly what you reach for when grabbing
+    /// an ear or the tip of his tail, so it has to count as him.
+    private static let hitAlphaThreshold: UInt8 = 10
+
+    /// Whether a point in this view's own coordinates lands on the pet rather
+    /// than on the transparent margin inside his cell.
+    private func pointIsOnPet(_ local: CGPoint) -> Bool {
+        let frame = petFrame
+        guard frame.contains(local), let cell = displayedCell else { return false }
+        // The cell is drawn with `resizeAspect` into a box of its own
+        // proportions, so this is a straight scale with no letterboxing to
+        // allow for. The y axis flips: the view's grows up, the mask's down.
+        let across = (local.x - frame.minX) / frame.width
+        let down = 1 - (local.y - frame.minY) / frame.height
+        let x = min(cell.width - 1, max(0, Int(across * CGFloat(cell.width))))
+        let y = min(cell.height - 1, max(0, Int(down * CGFloat(cell.height))))
+        return hitMask(for: cell)[y * cell.width + x] > Self.hitAlphaThreshold
+    }
+
+    /// The alpha channel of a cell, one byte per pixel, built on first use and
+    /// kept. Cells come from the atlas's own cache, so a pose is always the
+    /// same object and its mask is built once rather than once per click.
+    ///
+    /// Reading `dataProvider` would be cheaper and wrong: a cell is a crop of
+    /// the sheet, and a crop can hand back the whole sheet's bytes with the
+    /// crop carried as metadata.
+    private func hitMask(for cell: CGImage) -> [UInt8] {
+        let key = ObjectIdentifier(cell)
+        if let cached = hitMasks[key] { return cached }
+        let width = cell.width, height = cell.height
+        var pixels = [UInt8](repeating: 0, count: width * height * 4)
+        pixels.withUnsafeMutableBytes { buffer in
+            guard let context = CGContext(
+                data: buffer.baseAddress, width: width, height: height,
+                bitsPerComponent: 8, bytesPerRow: width * 4,
+                space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+            else { return }
+            context.draw(cell, in: CGRect(x: 0, y: 0, width: width, height: height))
+        }
+        var mask = [UInt8](repeating: 0, count: width * height)
+        for i in mask.indices { mask[i] = pixels[i * 4 + 3] }
+        hitMasks[key] = mask
+        return mask
     }
 
     override func menu(for event: NSEvent) -> NSMenu? {

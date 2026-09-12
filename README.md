@@ -195,6 +195,14 @@ When idle he follows the mouse pointer through the atlas's 16 look directions,
 and falls back to the idle loop when the pointer is close by. Drag him and he
 runs in the direction he is carried. Click him for his description.
 
+Clicks land on his outline rather than on the box he is drawn in. Every cell is
+192x208 and he fills perhaps half of it, so a bounding box swallowed clicks
+meant for whatever sits behind his corners. The alpha channel of each cell is
+copied once, on the first frame it is shown, and a click reads a single byte of
+it. Hovering goes through the same test, or he would hop at a pointer that was
+never on him. The cut is at an alpha of 10 rather than the checker's 40, because
+the soft rim of an ear or a tail tip is the part you actually aim at.
+
 Several Claude Code sessions can run at once, so each is tracked separately and
 the pet shows whichever most deserves attention. "Waiting for you" outranks
 "busy", which outranks "idle". The menu bar lists every live session and shows a
