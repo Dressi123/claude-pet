@@ -156,8 +156,8 @@ The cadence is taken from the idle row rather than invented, so both ways of
 resting blink at the same rate, and it is jittered by a quarter either way
 because a blink on a fixed interval reads as a metronome.
 
-The working state blinks too, from row 14, and inspecting and asking will when
-their rows arrive. A held pose is one still cell for seconds at a time, so those
+Working and inspecting blink too, from rows 14 and 15, and asking will when its
+row arrives. A held pose is one still cell for seconds at a time, so those
 were the states where he most obviously stared. Watching the pointer and holding
 a pose share one blink schedule, because they are mutually exclusive and moving
 between them should not restart the clock or fire a blink the moment he turns to
@@ -307,11 +307,11 @@ Everything else is byte-identical to the current generated atlas.
 
 ## The spritesheet
 
-1536x3120: 8 columns by 15 rows of 192x208 cells. Rows 0-8 are animation states
+1536x3328: 8 columns by 16 rows of 192x208 cells. Rows 0-8 are animation states
 with uneven per-frame durations. Rows 9 and 10 are the 16 clockwise look
 directions, where `000` is up, not front. Row 11 is sleep. Rows 12 and 13 are the
 closed-eye twins of the look directions, split the same way rows 9 and 10 are,
-and row 14 is the twins of the working poses.
+and rows 14 and 15 are the twins of the working and inspecting poses.
 Front-facing neutral is row 0, column 6, which is also the menu bar icon.
 
 The app counts rows rather than matching a fixed height. Eleven is the floor,

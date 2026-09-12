@@ -64,6 +64,7 @@ public enum PetState: String, CaseIterable {
     public var blinkRow: Int? {
         switch self {
         case .running: return 14
+        case .review: return 15
         default: return nil
         }
     }

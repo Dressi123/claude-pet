@@ -114,6 +114,16 @@ final class PetView: NSView {
     /// a lively pet; a companion that animates all day reads better slower.
     var speed: Double = 1.7
     private var lookIndex: Int?
+    /// What is actually on screen. Assigning `contents` marks the layer for
+    /// display and commits a transaction, which keeps the window compositing
+    /// even though the picture is the same one as last frame. Almost every tick
+    /// changes nothing: a held pose is a single image for seconds at a time.
+    private var displayedCell: CGImage?
+    /// Read once per tick. The pointer and his rect on screen were each being
+    /// worked out twice a frame, once to decide whether to hop and once to pick
+    /// a look direction.
+    private var pointerNow = NSPoint.zero
+    private var petRectNow: CGRect?
     /// Whether the cell currently on screen is the blinking twin, so the sprite
     /// is only reassigned when one of the two actually changes.
     private var lookIsBlinking = false
@@ -696,6 +706,11 @@ final class PetView: NSView {
     }
 
     private func tick() {
+        pointerNow = NSEvent.mouseLocation
+        petRectNow = (window?.screen != nil)
+            ? window.map { $0.convertToScreen(convert(petFrame, to: nil)) }
+            : nil
+
         if updateSleep() { return }
         updateBubble()
         if !isDragging, let pending = pendingResting,
@@ -716,8 +731,8 @@ final class PetView: NSView {
                 lookIsBlinking = blinking
                 // Falls back to the open-eyed cell rather than assigning nil,
                 // which would leave nothing on screen at all.
-                spriteLayer.contents = (blinking ? atlas.lookBlinkCell(index: index) : nil)
-                    ?? atlas.lookCell(index: index)
+                show((blinking ? atlas.lookBlinkCell(index: index) : nil)
+                    ?? atlas.lookCell(index: index))
                 debugTrace("look index=\(index) blink=\(blinking)", dedupe: false)
             }
             return
@@ -787,7 +802,7 @@ final class PetView: NSView {
             }
         }
         let frame = min(currentFrame, displayState.frameCount - 1)
-        spriteLayer.contents = atlas.cell(state: displayState, frame: frame)
+        show(atlas.cell(state: displayState, frame: frame))
     }
 
     /// Settles him down once nothing has happened for a while, and keeps him
@@ -806,7 +821,7 @@ final class PetView: NSView {
             sleepStep = 0
             sleepIsSettling = true
             sleepFrameStartedAt = CACurrentMediaTime()
-            spriteLayer.contents = atlas.sleepCell(column: SleepRow.settle[0])
+            show(atlas.sleepCell(column: SleepRow.settle[0]))
             debugTrace("asleep", dedupe: false)
             return true
         }
@@ -832,7 +847,7 @@ final class PetView: NSView {
             }
         }
         let current = sleepIsSettling ? SleepRow.settle : SleepRow.breathe
-        spriteLayer.contents = atlas.sleepCell(column: current[min(sleepStep, current.count - 1)])
+        show(atlas.sleepCell(column: current[min(sleepStep, current.count - 1)]))
     }
 
     /// Settles him immediately rather than waiting out the idle timer. Used
@@ -877,8 +892,8 @@ final class PetView: NSView {
         }
         let frame = min(currentFrame, state.frameCount - 1)
         let blinking = updateBlink(hasArt: atlas.blinkCell(state: state, frame: frame) != nil)
-        spriteLayer.contents = (blinking ? atlas.blinkCell(state: state, frame: frame) : nil)
-            ?? atlas.cell(state: state, frame: frame)
+        show((blinking ? atlas.blinkCell(state: state, frame: frame) : nil)
+            ?? atlas.cell(state: state, frame: frame))
     }
 
     /// He bounces for as long as the pointer is over him. Each jump is the
@@ -895,7 +910,7 @@ final class PetView: NSView {
 
     private func updateHover() {
         guard let rect = petScreenRect() else { pointerIsOver = simulatesHover; return }
-        pointerIsOver = simulatesHover || rect.contains(NSEvent.mouseLocation)
+        pointerIsOver = simulatesHover || rect.contains(pointerNow)
         guard pointerIsOver else { return }
         // Being hovered counts as activity, or he could drop off to sleep in
         // the one-frame gap between two jumps.
@@ -908,9 +923,15 @@ final class PetView: NSView {
         debugTrace("hover jump", dedupe: false)
     }
 
-    private func petScreenRect() -> CGRect? {
-        guard let window, window.screen != nil else { return nil }
-        return window.convertToScreen(convert(petFrame, to: nil))
+    private func petScreenRect() -> CGRect? { petRectNow }
+
+    /// Shows a cell, and does nothing at all when it is already the one on
+    /// screen. This is the difference between compositing sixty times a second
+    /// and compositing when something actually changes.
+    private func show(_ image: CGImage?) {
+        guard image !== displayedCell else { return }
+        displayedCell = image
+        spriteLayer.contents = image
     }
 
     /// Watching the pointer is a single still cell held for as long as you keep
@@ -953,7 +974,7 @@ final class PetView: NSView {
     private func pointerLookIndex() -> Int? {
         guard let petRect = petScreenRect() else { return nil }
         let center = NSPoint(x: petRect.midX, y: petRect.midY)
-        let mouse = NSEvent.mouseLocation
+        let mouse = pointerNow
         let dx = mouse.x - center.x
         let dy = mouse.y - center.y
         // Hysteresis: a pointer resting exactly on the boundary would other-
