@@ -129,9 +129,6 @@ final class PetView: NSView {
     /// a look direction.
     private var pointerNow = NSPoint.zero
     private var petRectNow: CGRect?
-    /// Alpha copies of the cells he has actually been drawn as, so a click can
-    /// be tested against his outline instead of the box around it.
-    private var hitMasks: [ObjectIdentifier: [UInt8]] = [:]
     /// Whether the cell currently on screen is the blinking twin, so the sprite
     /// is only reassigned when one of the two actually changes.
     private var lookIsBlinking = false
@@ -935,30 +932,16 @@ final class PetView: NSView {
     /// sprinting with his legs in slow motion.
     private static let walkSpeed: CGFloat = 520
 
-    /// Walks him out past the nearest edge and hands back once he is gone.
-    /// The window travels with him, which is the carry animation with a clock
-    /// on it instead of a hand.
-    func walkOffScreen(completion: @escaping () -> Void) {
-        guard let window, let screen = window.screen ?? NSScreen.main else {
-            completion()
-            return
-        }
-        let frame = window.frame
-        let bounds = screen.frame
-        // Whichever edge is nearer, so he never crosses the whole desktop to
-        // leave by the far side.
-        let leaves = frame.midX < bounds.midX ? bounds.minX - frame.width : bounds.maxX
-        startWalk(to: leaves, completion: completion)
-    }
-
-    /// Walks him back to where he was standing. The window is still parked
-    /// wherever he walked out to, so he comes in from the edge he left by.
-    func walkOnScreen(to home: NSPoint, completion: @escaping () -> Void) {
+    /// Walks his window to an x and hands back on arrival. The window travels
+    /// with him, which is the carry animation with a clock on it instead of a
+    /// hand. Where he is going is the caller's business: the doorway of his den
+    /// on the way out, and the spot he was standing on the way back.
+    func walk(toWindowOriginX x: CGFloat, completion: @escaping () -> Void) {
         guard window != nil else {
             completion()
             return
         }
-        startWalk(to: home.x, completion: completion)
+        startWalk(to: x, completion: completion)
     }
 
     private func startWalk(to x: CGFloat, completion: @escaping () -> Void) {
@@ -1125,52 +1108,11 @@ final class PetView: NSView {
         pointIsOnPet(convert(point, from: superview)) ? self : nil
     }
 
-    /// Deliberately not the checker's 40. That script measures how far a
-    /// silhouette moved, where a generous cut suppresses anti-aliasing noise.
-    /// Here the anti-aliased rim is exactly what you reach for when grabbing
-    /// an ear or the tip of his tail, so it has to count as him.
-    private static let hitAlphaThreshold: UInt8 = 10
-
     /// Whether a point in this view's own coordinates lands on the pet rather
     /// than on the transparent margin inside his cell.
     private func pointIsOnPet(_ local: CGPoint) -> Bool {
-        let frame = petFrame
-        guard frame.contains(local), let cell = displayedCell else { return false }
-        // The cell is drawn with `resizeAspect` into a box of its own
-        // proportions, so this is a straight scale with no letterboxing to
-        // allow for. The y axis flips: the view's grows up, the mask's down.
-        let across = (local.x - frame.minX) / frame.width
-        let down = 1 - (local.y - frame.minY) / frame.height
-        let x = min(cell.width - 1, max(0, Int(across * CGFloat(cell.width))))
-        let y = min(cell.height - 1, max(0, Int(down * CGFloat(cell.height))))
-        return hitMask(for: cell)[y * cell.width + x] > Self.hitAlphaThreshold
-    }
-
-    /// The alpha channel of a cell, one byte per pixel, built on first use and
-    /// kept. Cells come from the atlas's own cache, so a pose is always the
-    /// same object and its mask is built once rather than once per click.
-    ///
-    /// Reading `dataProvider` would be cheaper and wrong: a cell is a crop of
-    /// the sheet, and a crop can hand back the whole sheet's bytes with the
-    /// crop carried as metadata.
-    private func hitMask(for cell: CGImage) -> [UInt8] {
-        let key = ObjectIdentifier(cell)
-        if let cached = hitMasks[key] { return cached }
-        let width = cell.width, height = cell.height
-        var pixels = [UInt8](repeating: 0, count: width * height * 4)
-        pixels.withUnsafeMutableBytes { buffer in
-            guard let context = CGContext(
-                data: buffer.baseAddress, width: width, height: height,
-                bitsPerComponent: 8, bytesPerRow: width * 4,
-                space: CGColorSpaceCreateDeviceRGB(),
-                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
-            else { return }
-            context.draw(cell, in: CGRect(x: 0, y: 0, width: width, height: height))
-        }
-        var mask = [UInt8](repeating: 0, count: width * height)
-        for i in mask.indices { mask[i] = pixels[i * 4 + 3] }
-        hitMasks[key] = mask
-        return mask
+        guard let cell = displayedCell else { return false }
+        return AlphaMask.hits(cell, point: local, in: petFrame)
     }
 
     override func menu(for event: NSEvent) -> NSMenu? {

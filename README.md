@@ -232,11 +232,27 @@ Claude is doing, so unlike every other reaction it does not touch the bubble:
 the dots keep cycling, the clock keeps running, and a thought cloud stays a
 thought cloud. Turn it off with "Hop when you hover" in the menu.
 
-"Send him away" walks him off the nearest edge and hides the window. He is not
-gone for good: the next time anything actually changes he walks back in from
-the edge he left by and takes up the pose that summoned him. So it is a
-dismissal rather than a setting, which is why it is not remembered across a
-restart.
+"Send him away" stands a den at the nearer screen edge, walks him into it and
+hides his window. He is not gone for good: click the den, or wait for anything
+to actually change, and he walks back out and takes up the pose that summoned
+him. So it is a dismissal rather than a setting, which is why it is not
+remembered across a restart.
+
+The den is two cells in one PNG, empty and occupied. He runs into the empty
+one, and it swaps to the occupied one at the moment his window goes, so he
+arrives rather than vanishes. Clicking it swaps it back to empty before he
+walks out, so the den he comes out of is the den he went into.
+
+He walks right past the edge rather than stopping on the doorway, which looks
+wrong on paper and right on screen. He is 144 points wide and the den is 48, so
+the den cannot hide him: stopping him on the threshold leaves most of him
+standing beside it when his window goes. The den's window sits one level above
+his so he passes behind it on the way through.
+
+The den is its own window. His is sized to hold a 256-point speech bubble, and
+getting that off the screen is the entire point, so a door drawn inside it
+would take the window's footprint with it. It is 48 points wide against his 144
+and stands on the same baseline, and one Size setting drives both.
 
 Coming back has to be driven by a real change, not by the tracker publishing.
 The tracker republishes whatever the current state is every time it prunes,
@@ -346,8 +362,11 @@ since that covers every state and look direction; everything above it is
 optional and each row degrades on its own. So adding a row is an edit to
 `AtlasGeometry` and nothing else.
 
-Swapping in another hatched pet is a matter of replacing the two files in
-`Sources/MikkelPet/Resources`.
+Swapping in another hatched pet is a matter of replacing `pet.json` and
+`spritesheet.png` in `Sources/MikkelPet/Resources`. `den.png` beside them is not
+part of that: the sheet is a grid of character poses, and the den is the app's
+own furniture. It is 128x208, two 64x208 cells, empty and occupied, drawn with
+its cut side on the left and mirrored to stand against a right-hand edge.
 
 ## Layout
 
