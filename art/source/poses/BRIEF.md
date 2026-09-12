@@ -45,3 +45,15 @@ closed already. Leave them exactly as they are; their twin is themselves.
 
 It passes at 0.0%. If the returned file is not 1152 x 208 it was redrawn rather
 than edited, and it will not pass, so there is no point going further with it.
+
+## Save it under a new name
+
+The returned file goes in `art/blink/`, named for the row it is a twin of. Do
+not save it over the source strip in this folder, however tempting the Save
+dialog makes it. That has happened three times: the source is overwritten by its
+own twin, the Finder leaves the original beside it as a "copy", and the file
+named after the source row is now the closed-eye art. Nothing warns you, because
+a twin passes every check a source would.
+
+The sheet is the real source in the end, so this is recoverable by re-cropping
+the row. It is still an afternoon of confusion nobody needs.

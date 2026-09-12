@@ -64,3 +64,15 @@ The pet holds a single still look cell for as long as the pointer is still,
 which is where it spends nearly all of its idle time and why it currently almost
 never blinks. With these rows, a blink during pointer watching becomes a ~110ms
 swap to the same index in the blink row and back. I will wire that up.
+
+## Save it under a new name
+
+The returned file goes in `art/blink/`, named for the row it is a twin of. Do
+not save it over the source strip in this folder, however tempting the Save
+dialog makes it. That has happened three times: the source is overwritten by its
+own twin, the Finder leaves the original beside it as a "copy", and the file
+named after the source row is now the closed-eye art. Nothing warns you, because
+a twin passes every check a source would.
+
+The sheet is the real source in the end, so this is recoverable by re-cropping
+the row. It is still an afternoon of confusion nobody needs.

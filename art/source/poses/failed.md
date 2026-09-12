@@ -107,3 +107,15 @@ The sheet is 17 rows today (1536 x 3536): rows 0-8 states, 9-10 look directions,
 failed twin becomes row 17. Nothing in the app reads it until `blinkRow` in
 `AnimationCatalog.swift` says so, and that is a separate change from producing
 the art.
+
+## Save it under a new name
+
+The returned file goes in `art/blink/`, named for the row it is a twin of. Do
+not save it over the source strip in this folder, however tempting the Save
+dialog makes it. That has happened three times: the source is overwritten by its
+own twin, the Finder leaves the original beside it as a "copy", and the file
+named after the source row is now the closed-eye art. Nothing warns you, because
+a twin passes every check a source would.
+
+The sheet is the real source in the end, so this is recoverable by re-cropping
+the row. It is still an afternoon of confusion nobody needs.
