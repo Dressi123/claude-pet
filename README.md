@@ -232,6 +232,26 @@ Claude is doing, so unlike every other reaction it does not touch the bubble:
 the dots keep cycling, the clock keeps running, and a thought cloud stays a
 thought cloud. Turn it off with "Hop when you hover" in the menu.
 
+"Send him away" walks him off the nearest edge and hides the window. He is not
+gone for good: the next time anything actually changes he walks back in from
+the edge he left by and takes up the pose that summoned him. So it is a
+dismissal rather than a setting, which is why it is not remembered across a
+restart.
+
+Coming back has to be driven by a real change, not by the tracker publishing.
+The tracker republishes whatever the current state is every time it prunes,
+which is once a minute, so a pet that came back on every publish would never
+stay away for more than a minute. The signal is sent where a pose is actually
+taken up and where a reaction is actually accepted, so it agrees with the dwell
+window instead of second-guessing it from outside.
+
+Walking is the carry animation with a clock on it rather than a hand, so it
+reuses the running rows and needed no new art. Pace stretches it like everything
+else, and a frame the app was too busy to run is treated as a short one so a
+stall cannot teleport him across the desktop. The window has to be allowed off
+the screen for any of this, which means overriding the constraint that normally
+keeps every window reachable.
+
 Headless `claude -p` sessions are ignored by default. Hooks that start their own
 Claude session, which is what a session-summary Stop hook does, would otherwise
 keep the pet permanently busy with work nobody is watching. Interactive sessions

@@ -9,6 +9,11 @@ import AppKit
 protocol PetViewDelegate: AnyObject {
     func petViewWasClicked(_ view: PetView)
     func petViewOneShotFinished(_ view: PetView, state: PetState)
+    /// Something actually changed, as opposed to the tracker republishing a
+    /// state it has already published. Sent when a pose is taken up or a
+    /// reaction is accepted, so it agrees with the dwell window rather than
+    /// second-guessing it from outside.
+    func petViewStateChanged(_ view: PetView)
     /// The menu to show on a right-click, so the pet stays reachable when the
     /// menu bar icon is hidden behind a notch or a crowded bar.
     func petViewMenu(_ view: PetView) -> NSMenu
@@ -137,6 +142,14 @@ final class PetView: NSView {
     private var nextBlinkAt: CFTimeInterval = 0
 
     private var dragOrigin: NSPoint?
+
+    /// Where he is walking himself to, in screen x. Nil when he is standing
+    /// still. Carrying him and walking are the same motion with a different
+    /// hand on it, so the two hold the animation the same way.
+    private var walkTargetX: CGFloat?
+    private var walkCompletion: (() -> Void)?
+    private var walkLastTick: CFTimeInterval = 0
+    var isWalking: Bool { walkTargetX != nil }
     private var dragState: PetState?
     private var didDrag = false
     /// While the pet is being carried, Claude's status must not overwrite the
@@ -319,8 +332,9 @@ final class PetView: NSView {
             oneShotIsSpontaneous = false
             oneShotStartedAt = CACurrentMediaTime()
             resetFrame()
+            delegate?.petViewStateChanged(self)
         }
-        if isDragging {
+        if isDragging || isWalking {
             // Hold the carry animation; take up the new status on release.
             pendingResting = resting
         } else if resting == restingState {
@@ -338,6 +352,7 @@ final class PetView: NSView {
         restingState = state
         restingStartedAt = CACurrentMediaTime()
         if oneShotState == nil { resetFrame() }
+        delegate?.petViewStateChanged(self)
     }
 
     private var displayState: PetState { oneShotState ?? restingState }
@@ -716,7 +731,8 @@ final class PetView: NSView {
 
         if updateSleep() { return }
         updateBubble()
-        if !isDragging, let pending = pendingResting,
+        advanceWalk()
+        if !isDragging, !isWalking, let pending = pendingResting,
            CACurrentMediaTime() - restingStartedAt >= Self.minimumDwell {
             pendingResting = nil
             if pending != restingState { commitResting(pending) }
@@ -908,7 +924,89 @@ final class PetView: NSView {
     /// Whether a bounce already under way should come round again rather than
     /// hand back to the resting pose.
     private var shouldKeepBouncing: Bool {
-        oneShotIsSpontaneous && pointerIsOver && jumpsOnHover && !isDragging && !isAsleep
+        oneShotIsSpontaneous && pointerIsOver && jumpsOnHover && !isDragging
+            && !isWalking && !isAsleep
+    }
+
+    // MARK: - Coming and going
+
+    /// Points a second at Lively. Pace stretches a walk the same way it
+    /// stretches everything else, so a calm pet strolls out rather than
+    /// sprinting with his legs in slow motion.
+    private static let walkSpeed: CGFloat = 520
+
+    /// Walks him out past the nearest edge and hands back once he is gone.
+    /// The window travels with him, which is the carry animation with a clock
+    /// on it instead of a hand.
+    func walkOffScreen(completion: @escaping () -> Void) {
+        guard let window, let screen = window.screen ?? NSScreen.main else {
+            completion()
+            return
+        }
+        let frame = window.frame
+        let bounds = screen.frame
+        // Whichever edge is nearer, so he never crosses the whole desktop to
+        // leave by the far side.
+        let leaves = frame.midX < bounds.midX ? bounds.minX - frame.width : bounds.maxX
+        startWalk(to: leaves, completion: completion)
+    }
+
+    /// Walks him back to where he was standing. The window is still parked
+    /// wherever he walked out to, so he comes in from the edge he left by.
+    func walkOnScreen(to home: NSPoint, completion: @escaping () -> Void) {
+        guard window != nil else {
+            completion()
+            return
+        }
+        startWalk(to: home.x, completion: completion)
+    }
+
+    private func startWalk(to x: CGFloat, completion: @escaping () -> Void) {
+        guard let window else {
+            completion()
+            return
+        }
+        walkTargetX = x
+        walkCompletion = completion
+        walkLastTick = CACurrentMediaTime()
+        wake()
+        oneShotState = nil
+        oneShotIsSpontaneous = false
+        // What he was doing is what he goes back to on arrival, the same way a
+        // carry hands back. Without this the running pose is the last thing
+        // committed and he walks in having forgotten why he was called.
+        if pendingResting == nil { pendingResting = restingState }
+        commitResting(x < window.frame.origin.x ? .runningLeft : .runningRight)
+    }
+
+    private func advanceWalk() {
+        guard let target = walkTargetX, let window else { return }
+        let now = CACurrentMediaTime()
+        // A frame the app was too busy to run must not teleport him across the
+        // desktop, so a long gap is treated as a short one.
+        let elapsed = min(now - walkLastTick, 0.1)
+        walkLastTick = now
+        var origin = window.frame.origin
+        let step = Self.walkSpeed / CGFloat(speed) * CGFloat(elapsed)
+        if abs(target - origin.x) <= step {
+            origin.x = target
+            window.setFrameOrigin(origin)
+            finishWalk()
+            return
+        }
+        origin.x += target > origin.x ? step : -step
+        window.setFrameOrigin(origin)
+    }
+
+    private func finishWalk() {
+        walkTargetX = nil
+        let done = walkCompletion
+        walkCompletion = nil
+        // Pick up whatever Claude moved on to while he was walking, exactly as
+        // being put down after a carry does.
+        commitResting(pendingResting ?? .idle)
+        pendingResting = nil
+        done?()
     }
 
     private func updateHover() {
@@ -917,7 +1015,8 @@ final class PetView: NSView {
         // Being hovered counts as activity, or he could drop off to sleep in
         // the one-frame gap between two jumps.
         quietSince = CACurrentMediaTime()
-        guard jumpsOnHover, !isDragging, !isAsleep, oneShotState == nil else { return }
+        guard jumpsOnHover, !isDragging, !isWalking, !isAsleep,
+              oneShotState == nil else { return }
         oneShotState = .jumping
         oneShotIsSpontaneous = true
         oneShotStartedAt = CACurrentMediaTime()
@@ -1093,6 +1192,7 @@ final class PetView: NSView {
             return
         }
         wake()
+        guard !isWalking else { return }
         dragOrigin = NSEvent.mouseLocation
         didDrag = false
     }

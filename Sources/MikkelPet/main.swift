@@ -68,6 +68,13 @@ if let command = arguments.first {
 
 final class PetWindow: NSWindow {
     override var canBecomeKey: Bool { true }
+
+    /// A pet who walks himself off the edge has to be allowed to get there.
+    /// The default keeps part of every window reachable on a screen, which for
+    /// a borderless one is a quiet refusal to leave.
+    override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
+        frameRect
+    }
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate, PetViewDelegate {
@@ -80,6 +87,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PetViewDelegate {
     private var pruneTimer: Timer?
 
     private let positionKey = "PetWindowOrigin"
+    /// Where he was standing before he was sent away, and the flag for being
+    /// away at all. Deliberately not persisted: being out of sight lasts until
+    /// the next thing happens, so it should not outlive a restart either.
+    private var awayHome: NSPoint?
     private let scaleKey = "PetScale"
     private let backgroundKey = "FollowBackgroundSessions"
     private let speedKey = "PetSpeed"
@@ -193,7 +204,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PetViewDelegate {
     }
 
     private func savePosition() {
-        UserDefaults.standard.set(NSStringFromPoint(window.frame.origin), forKey: positionKey)
+        // While he is away the window is parked off the edge, and restoring
+        // that on the next launch would land him nowhere.
+        let origin = awayHome ?? window.frame.origin
+        UserDefaults.standard.set(NSStringFromPoint(origin), forKey: positionKey)
     }
 
     // MARK: - Menu bar
@@ -263,6 +277,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PetViewDelegate {
         background.state = tracker.followsBackgroundSessions ? .on : .off
         background.toolTip = "Headless claude -p runs, including sessions your own hooks start."
         menu.addItem(background)
+
+        let away = NSMenuItem(
+            title: awayHome == nil ? "Send him away" : "Bring him back",
+            action: #selector(toggleAway), keyEquivalent: "")
+        away.target = self
+        away.toolTip = awayHome == nil
+            ? "He walks off the edge and comes back when a session changes state."
+            : "He is off the edge waiting for something to happen."
+        menu.addItem(away)
 
         let sizes = NSMenuItem(title: "Size", action: nil, keyEquivalent: "")
         let sizeMenu = NSMenu()
@@ -399,6 +422,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PetViewDelegate {
         savePosition()
     }
 
+    /// Sends him off the nearest edge, or walks him back in if he is already
+    /// gone. Going away is a dismissal rather than a setting: the next thing
+    /// that actually happens brings him back on its own.
+    @objc private func toggleAway() {
+        if awayHome != nil {
+            bringHimBack()
+            return
+        }
+        let home = window.frame.origin
+        awayHome = home
+        rebuildMenu()
+        petView.walkOffScreen { [weak self] in
+            guard let self, self.awayHome != nil else { return }
+            self.window.orderOut(nil)
+        }
+    }
+
+    private func bringHimBack() {
+        guard let home = awayHome else { return }
+        // Cleared first, so the poses he takes up walking back in do not read
+        // as the change that was supposed to summon him.
+        awayHome = nil
+        window.orderFrontRegardless()
+        petView.walkOnScreen(to: home) { [weak self] in
+            self?.window.setFrameOrigin(home)
+            self?.savePosition()
+        }
+        rebuildMenu()
+    }
+
     // MARK: - PetViewDelegate
 
     func petViewWasClicked(_ view: PetView) {
@@ -412,6 +465,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PetViewDelegate {
     func petViewMenu(_ view: PetView) -> NSMenu {
         rebuildMenu()
         return statusItem.menu ?? NSMenu()
+    }
+
+    /// He lets himself back in when something really changes. The tracker
+    /// republishes the same state every time it prunes, which is once a
+    /// minute, so this has to be a change rather than a publish or being sent
+    /// away would never last longer than the next sweep.
+    func petViewStateChanged(_ view: PetView) {
+        // Walking out commits poses of its own, and ends by handing back to a
+        // resting one. Both would otherwise read as the change that summons
+        // him and turn him round on the doorstep. He is only gone once the
+        // window is.
+        guard awayHome != nil, !window.isVisible else { return }
+        bringHimBack()
     }
 
     func petViewOneShotFinished(_ view: PetView, state: PetState) {
