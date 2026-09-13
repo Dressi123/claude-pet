@@ -932,10 +932,25 @@ final class PetView: NSView {
     /// sprinting with his legs in slow motion.
     private static let walkSpeed: CGFloat = 520
 
+    /// Walks him out past the nearest edge and hands back once he is gone.
+    /// The window travels with him, which is the carry animation with a clock
+    /// on it instead of a hand.
+    func walkOffScreen(completion: @escaping () -> Void) {
+        guard let window, let screen = window.screen ?? NSScreen.main else {
+            completion()
+            return
+        }
+        let frame = window.frame
+        let bounds = screen.frame
+        // Whichever edge is nearer, so he never crosses the whole desktop to
+        // leave by the far side.
+        let leaves = frame.midX < bounds.midX ? bounds.minX - frame.width : bounds.maxX
+        startWalk(to: leaves, completion: completion)
+    }
+
     /// Walks his window to an x and hands back on arrival. The window travels
     /// with him, which is the carry animation with a clock on it instead of a
-    /// hand. Where he is going is the caller's business: the doorway of his den
-    /// on the way out, and the spot he was standing on the way back.
+    /// hand. Used for the way back: the spot he was standing on when he left.
     func walk(toWindowOriginX x: CGFloat, completion: @escaping () -> Void) {
         guard window != nil else {
             completion()

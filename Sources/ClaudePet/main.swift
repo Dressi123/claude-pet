@@ -85,7 +85,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PetViewDelegate {
     private let server = EventServer()
     private let tracker = SessionTracker()
     private var pruneTimer: Timer?
-    private var den: Den?
 
     private let positionKey = "PetWindowOrigin"
     /// Where he was standing before he was sent away, and the flag for being
@@ -111,8 +110,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PetViewDelegate {
 
         buildWindow()
         buildStatusItem()
-        den = Den(scale: petView.scale)
-        den?.onClick = { [weak self] in self?.bringHimBack() }
 
         tracker.followsBackgroundSessions = UserDefaults.standard.bool(forKey: backgroundKey)
         tracker.onChange = { [weak self] resting, oneShot, label, session in
@@ -399,11 +396,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PetViewDelegate {
         frame.size = size
         window.setFrame(frame, display: true)
         petView.frame = NSRect(origin: .zero, size: size)
-        if awayHome != nil, let den, let screen = NSScreen.main {
-            let standing = den.isShowing
-            den.show(scale: petView.scale, near: window.frame, on: screen)
-            if standing { den.set(.occupied) }
-        }
         rebuildMenu()
     }
 
@@ -441,20 +433,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PetViewDelegate {
         let home = window.frame.origin
         awayHome = home
         rebuildMenu()
-
-        // The den stands open at the nearer edge, he walks into the doorway,
-        // and only then does his window go. Swapping the den to its occupied
-        // cell at that moment is what sells it: he does not vanish, he arrives.
-        guard let den, let screen = window.screen ?? NSScreen.main else {
-            window.orderOut(nil)
-            return
-        }
-        den.show(scale: petView.scale, near: window.frame, on: screen)
-        let vanishes = den.petWindowOriginPastEdge(petWindowWidth: window.frame.width, on: screen)
-        petView.walk(toWindowOriginX: vanishes) { [weak self] in
+        petView.walkOffScreen { [weak self] in
             guard let self, self.awayHome != nil else { return }
             self.window.orderOut(nil)
-            den.set(.occupied)
         }
     }
 
@@ -463,14 +444,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PetViewDelegate {
         // Cleared first, so the poses he takes up walking back out do not read
         // as the change that was supposed to summon him.
         awayHome = nil
-        // He leaves the doorway empty behind him, so the den he walks out of is
-        // the one he walked into.
-        den?.set(.empty)
         window.orderFrontRegardless()
         petView.walk(toWindowOriginX: home.x) { [weak self] in
             guard let self else { return }
             self.window.setFrameOrigin(home)
-            self.den?.hide()
             self.savePosition()
         }
         rebuildMenu()
@@ -498,7 +475,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PetViewDelegate {
     func petViewStateChanged(_ view: PetView) {
         // Walking out commits poses of its own, and ends by handing back to a
         // resting one. Both would otherwise read as the change that summons
-        // him and turn him round on the doorstep. He is only gone once the
+        // him and turn him round before he has left. He is only gone once the
         // window is.
         guard awayHome != nil, !window.isVisible else { return }
         bringHimBack()

@@ -107,7 +107,7 @@ hidden behind the notch.
 | **Watch the pointer** | When idle, he follows the mouse through 16 look directions. |
 | **Hop when you hover** | He jumps when the pointer arrives over him. Fires on arrival, with a few seconds' cooldown. |
 | **Follow background sessions** | Headless `claude -p` runs are ignored by default, since hooks that start their own session would keep him permanently busy with work nobody is watching. |
-| **Send him away** | He walks into a den at the nearer screen edge and his window hides. Click the den, or wait for anything to change, and he walks back out. Not remembered across a restart. |
+| **Send him away** | He walks off the nearer screen edge and his window hides. Wait for anything to change, or pick "Bring him back", and he walks back in the way he left. Not remembered across a restart. |
 | **Size** | Small, Medium or Large. Half, three quarters or full size. |
 | **Pace** | Lively, Steady, Relaxed or Calm. Stretches every frame duration; the default is 1.7x the atlas's own timings. |
 | **Sleep when idle** | After 2, 4 or 10 minutes, or never. |
@@ -162,8 +162,7 @@ a twin simply does not blink rather than holding the feature back.
 ## Swapping in another pet
 
 Replace `pet.json` and `spritesheet.png` in `Sources/ClaudePet/Resources`.
-`den.png` beside them is not part of that: the sheet is a grid of character
-poses, and the den is the app's own furniture.
+Those two files are the whole of it.
 
 What governs the sheet is `PetState` in `Sources/PetCore/AnimationCatalog.swift`:
 

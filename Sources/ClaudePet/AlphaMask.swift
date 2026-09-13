@@ -1,16 +1,16 @@
 import CoreGraphics
 
 /// Alpha copies of images, so a click can be tested against what was drawn
-/// rather than the box it was drawn in. Both the pet and his den need this and
-/// they need it to agree, so the mapping from a point to a pixel lives here
-/// once rather than twice.
+/// rather than the box it was drawn in. Kept out of `PetView` so the mapping
+/// from a point to a pixel is stated once, in one place, rather than inline in
+/// whatever happens to need it.
 enum AlphaMask {
     private static var cache: [ObjectIdentifier: [UInt8]] = [:]
 
     /// Deliberately not the blink checker's 40. That script asks how far a
     /// silhouette moved, where a generous cut suppresses anti-aliasing noise.
     /// Here the anti-aliased rim is exactly what you reach for when grabbing an
-    /// ear or the edge of a doorway, so it has to count.
+    /// ear or the tip of his tail, so it has to count.
     static let threshold: UInt8 = 10
 
     /// The alpha channel of an image, one byte per pixel, built on first use
@@ -43,7 +43,7 @@ enum AlphaMask {
 
     /// Whether a point inside `frame` lands on the image rather than on the
     /// transparent margin around it. The image is assumed to fill `frame`,
-    /// which it does for both callers: each is drawn with `resizeAspect` into a
+    /// which it does for the pet: a cell is drawn with `resizeAspect` into a
     /// box of its own proportions, so there is no letterboxing to allow for.
     ///
     /// The y axis flips here: a view's grows upwards and a mask's downwards.
