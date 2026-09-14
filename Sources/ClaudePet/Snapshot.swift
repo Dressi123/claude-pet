@@ -163,8 +163,12 @@ enum Snapshot {
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = context
         context.cgContext.scaleBy(x: pixelScale, y: pixelScale)
-        NSColor(calibratedRed: 0.12, green: 0.13, blue: 0.16, alpha: 1).setFill()
-        NSRect(origin: .zero, size: size).fill()
+        // Same rule as a snapshot: a dark ground unless CLAUDE_PET_SNAPSHOT_BG
+        // is "none", which the README's transparent demo animation needs.
+        if ProcessInfo.processInfo.environment["CLAUDE_PET_SNAPSHOT_BG"] != "none" {
+            NSColor(calibratedRed: 0.12, green: 0.13, blue: 0.16, alpha: 1).setFill()
+            NSRect(origin: .zero, size: size).fill()
+        }
         let source = usePresentation ? (view.layer?.presentation() ?? view.layer) : view.layer
         source?.render(in: context.cgContext)
         NSGraphicsContext.restoreGraphicsState()

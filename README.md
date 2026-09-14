@@ -12,7 +12,7 @@ and tells you in a speech bubble what it is up to.
 [![License: MIT](https://img.shields.io/badge/license-MIT-1f2433)](LICENSE)
 [![Native AppKit](https://img.shields.io/badge/native-AppKit%2C%20no%20Electron-f0a132)](#how-it-works)
 
-<img src="docs/demo.gif" alt="The pet working through a Claude Code session: he waves, inspects a file, thinks about an edit, looks sad when a tool fails, runs the tests, and finishes" width="280">
+<img src="docs/demo.webp" alt="The pet working through a Claude Code session: he waves, inspects a file, thinks about an edit, looks sad when a tool fails, runs the tests, and finishes" width="280">
 
 [Install](#install) · [What he does](#what-he-does) · [What he says](#what-he-says) · [Using him](#using-him) · [How it works](#how-it-works)
 
@@ -153,7 +153,8 @@ without a twin simply does not blink.
 ## Make it yours
 
 Want a different character? Replace `pet.json` and `spritesheet.png` in
-`Sources/ClaudePet/Resources`. The sheet is 8 columns of 192x208 cells, and the
+`Sources/ClaudePet/Resources`. [The current sheet](Sources/ClaudePet/Resources/spritesheet.png)
+is 8 columns of 192x208 cells, and the
 row layout, the art pipeline and the developer tooling are described in
 [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 

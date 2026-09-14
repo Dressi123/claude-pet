@@ -94,12 +94,16 @@ CLAUDE_PET_SNAPSHOT_SETTLE=3 .build/release/ClaudePet --snapshot docs/asking.png
 The settle time matters: a state waits out a dwell window before it commits, and
 the elapsed clock only appears once a job passes four seconds.
 
-The demo GIF is the scripted session filmed at 2x and encoded with ffmpeg. Pass
-the frame rate `--film` prints as `-framerate`:
+The demo animation is the scripted session filmed at 2x on a transparent ground
+and encoded as an animated WebP. Not a GIF: GIF transparency is all or nothing
+per pixel, which leaves a jagged halo on his fur and drops the balloon's shadow
+on one of GitHub's two themes. Pass the frame rate `--film` prints as
+`-framerate`:
 
 ```bash
-CLAUDE_PET_FILM_SCALE=2 .build/release/ClaudePet --film /tmp/film session
-ffmpeg -framerate <fps> -i /tmp/film/frame-%04d.png \
-  -vf "fps=20,split[a][b];[a]palettegen=max_colors=192:stats_mode=diff[p];[b][p]paletteuse=dither=sierra2_4a:diff_mode=rectangle" \
-  -loop 0 docs/demo.gif
+CLAUDE_PET_SNAPSHOT_BG=none CLAUDE_PET_FILM_SCALE=2 \
+  .build/release/ClaudePet --film /tmp/film session
+ffmpeg -framerate <fps> -i /tmp/film/frame-%04d.png -vf fps=17 \
+  -c:v libwebp_anim -quality 80 -compression_level 6 -pix_fmt yuva420p \
+  -loop 0 docs/demo.webp
 ```
