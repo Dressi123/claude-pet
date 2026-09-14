@@ -20,8 +20,23 @@ and tells you in a speech bubble what it is up to.
 
 ## Install
 
-**Requirements:** macOS 13 or later, [Claude Code](https://claude.com/claude-code),
-and a Swift 6 toolchain, which means Xcode or the Command Line Tools.
+**Requirements:** macOS 13 or later and [Claude Code](https://claude.com/claude-code).
+
+### Download
+
+1. Grab `Claude-Pet.zip` from the [latest release](https://github.com/Dressi123/claude-pet/releases/latest), unzip it, and move **Claude Pet.app** to `/Applications`. The download is built for Apple silicon; on an Intel Mac, build from source.
+2. The app is not notarized, so macOS will refuse to open a downloaded copy. Clear the quarantine flag once:
+   ```bash
+   xattr -dr com.apple.quarantine "/Applications/Claude Pet.app"
+   ```
+3. Open it, then install the Claude Code hooks from the pet's menu, or with:
+   ```bash
+   "/Applications/Claude Pet.app/Contents/MacOS/claude-pet" --install-hooks
+   ```
+
+### Build from source
+
+Needs a Swift 6 toolchain, which means Xcode or the Command Line Tools.
 
 ```bash
 git clone https://github.com/Dressi123/claude-pet.git
