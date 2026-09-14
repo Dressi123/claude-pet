@@ -119,6 +119,11 @@ enum Snapshot {
         // Frames are captured as fast as they render, which is slower than the
         // target. The achieved rate is printed so the GIF can be timed to it.
         let fps = 30.0
+        // Frames are captured at 1x by default: the render is the bottleneck,
+        // and at 2x the capture rate can drop low enough to make motion
+        // stutter. CLAUDE_PET_FILM_SCALE=2 trades that for a sharper README GIF.
+        let pixelScale = ProcessInfo.processInfo.environment["CLAUDE_PET_FILM_SCALE"]
+            .flatMap(Double.init).map { CGFloat($0) } ?? 1
         var cue = 0
         var frame = 0
         let started = Date()
@@ -134,9 +139,8 @@ enum Snapshot {
             RunLoop.current.run(until: Date().addingTimeInterval(1.0 / fps))
 
             let path = String(format: "%@/frame-%04d.png", directory, frame)
-            // Film frames are captured at 1x: the render is the bottleneck, and
-            // at 2x the capture rate drops low enough to make motion stutter.
-            try render(view: view, size: size, to: path, usePresentation: true, pixelScale: 1)
+            try render(view: view, size: size, to: path, usePresentation: true,
+                       pixelScale: pixelScale)
             frame += 1
         }
         let elapsed = Date().timeIntervalSince(started)
